@@ -77,8 +77,9 @@ details{border:1px solid var(--line);background:var(--panel2);border-radius:12px
   </div></div>
   <div class="cloud-box">
     <div class="tiny" id="authState">Local mode · checking cloud…</div>
-    <button class="btn small" id="loginBtn">Sign in with Google</button>
-    <button class="btn small" id="logoutBtn" hidden>Sign out</button>
+    <button class="btn small" id="loginBtn">Enable cloud sync</button>
+    <button class="btn small" id="syncKeyBtn" hidden>Copy sync key</button>
+    <button class="btn small" id="logoutBtn" hidden>Disconnect this device</button>
     <div class="tiny cloud-status" id="syncState"></div>
   </div>
 </aside>
@@ -153,7 +154,6 @@ details{border:1px solid var(--line);background:var(--panel2);border-radius:12px
 <script>
 (()=>{
 'use strict';
-const APP_URL='https://hamza-tracker.vercel.app/';
 const SUPABASE_URL='https://firnmcqtjprckgqdcplg.supabase.co';
 const SUPABASE_KEY='sb_publishable_oG0bcYmr6nijxKeY02U0YA_iHnp79gZ';
 const cloud=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -184,7 +184,8 @@ let data=loadData();
 let activeDate=iso();
 let quickDiaryCategory='Day Summary';
 let diaryCategory='Day Summary';
-let cloudUser=null;
+const SYNC_KEY_STORE='hamzaTrackerSyncKey';
+let syncKey=localStorage.getItem(SYNC_KEY_STORE)||'';
 let syncTimer=null;
 
 function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[]},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
@@ -218,37 +219,96 @@ function save(sync=true){
 }
 function setSyncState(msg,bad=false){const el=document.getElementById('syncState');if(!el)return;el.textContent=msg;el.style.color=bad?'var(--danger)':'var(--muted)'}
 function renderAuthState(){
-  const state=document.getElementById('authState'),login=document.getElementById('loginBtn'),logout=document.getElementById('logoutBtn');
-  if(!state||!login||!logout)return;
-  if(cloudUser){state.textContent=cloudUser.email||'Signed in';login.hidden=true;logout.hidden=false}
-  else{state.textContent='Local mode · sign in to sync';login.hidden=false;logout.hidden=true;setSyncState('')}
+  const state=document.getElementById('authState'),login=document.getElementById('loginBtn'),logout=document.getElementById('logoutBtn'),keyBtn=document.getElementById('syncKeyBtn');
+  if(!state||!login||!logout||!keyBtn)return;
+  if(syncKey){
+    state.textContent='Cloud sync enabled';
+    login.hidden=true;
+    logout.hidden=false;
+    keyBtn.hidden=false;
+  }else{
+    state.textContent='Local mode · enable sync for other devices';
+    login.hidden=false;
+    logout.hidden=true;
+    keyBtn.hidden=true;
+    setSyncState('');
+  }
 }
-function queueCloudSync(){if(!cloudUser)return;clearTimeout(syncTimer);syncTimer=setTimeout(pushCloud,700)}
+function queueCloudSync(){
+  if(!syncKey)return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(pushCloud,700);
+}
 async function pushCloud(){
-  if(!cloudUser)return;
+  if(!syncKey)return;
   setSyncState('Syncing…');
-  const {error}=await cloud.from('tracker_state').upsert({user_id:cloudUser.id,payload:data,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  const {error}=await cloud.rpc('put_tracker_sync',{p_key:syncKey,p_payload:data});
   setSyncState(error?'Sync failed: '+error.message:'Synced',!!error);
 }
-async function pullCloud(){
-  if(!cloudUser)return;
+async function pullCloud(forceCloud=false){
+  if(!syncKey)return;
   setSyncState('Checking cloud…');
-  const {data:row,error}=await cloud.from('tracker_state').select('payload,updated_at').eq('user_id',cloudUser.id).maybeSingle();
+  const {data:rows,error}=await cloud.rpc('get_tracker_sync',{p_key:syncKey});
   if(error){setSyncState('Cloud error: '+error.message,true);return}
+  const row=Array.isArray(rows)?rows[0]:rows;
   if(!row){await pushCloud();return}
   const localTime=Date.parse(data.settings?.lastModified||0),cloudTime=Date.parse(row.payload?.settings?.lastModified||row.updated_at||0);
-  if(cloudTime>localTime){data=normalize(row.payload);localStorage.setItem(KEY,JSON.stringify(data));renderAll();setSyncState('Cloud data loaded')}
-  else if(localTime>cloudTime){await pushCloud()}
-  else setSyncState('Synced');
+  if(forceCloud||cloudTime>localTime){
+    data=normalize(row.payload);
+    localStorage.setItem(KEY,JSON.stringify(data));
+    renderAll();
+    setSyncState('Cloud data loaded');
+  }else if(localTime>cloudTime){
+    await pushCloud();
+  }else setSyncState('Synced');
+}
+function makeSyncKey(){
+  const bytes=new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function enableSync(){
+  const hasExisting=confirm('Already have a sync key from another device?\n\nOK = enter existing key\nCancel = create a new key');
+  if(hasExisting){
+    const entered=(prompt('Paste your private sync key:')||'').trim();
+    if(!entered)return;
+    if(entered.length<20){alert('That sync key is invalid.');return}
+    syncKey=entered;
+    localStorage.setItem(SYNC_KEY_STORE,syncKey);
+    renderAuthState();
+    await pullCloud(true);
+    return;
+  }
+  syncKey=makeSyncKey();
+  localStorage.setItem(SYNC_KEY_STORE,syncKey);
+  renderAuthState();
+  await pushCloud();
+  try{
+    await navigator.clipboard.writeText(syncKey);
+    alert('Cloud sync is enabled. Your private sync key was copied. Keep it somewhere safe; you need it to connect another device.');
+  }catch(_e){
+    prompt('Cloud sync is enabled. Copy and save this private sync key:',syncKey);
+  }
+}
+async function copySyncKey(){
+  if(!syncKey)return;
+  try{
+    await navigator.clipboard.writeText(syncKey);
+    setSyncState('Sync key copied');
+  }catch(_e){
+    prompt('Copy your private sync key:',syncKey);
+  }
+}
+function disableSync(){
+  if(!syncKey)return;
+  if(!confirm('Disconnect cloud sync on this device? Your cloud data will stay saved.'))return;
+  localStorage.removeItem(SYNC_KEY_STORE);
+  syncKey='';
+  renderAuthState();
 }
 async function initCloud(){
-  const {data:{session}}=await cloud.auth.getSession();cloudUser=session?.user||null;renderAuthState();if(cloudUser)await pullCloud();
-  cloud.auth.onAuthStateChange(async(_event,session)=>{cloudUser=session?.user||null;renderAuthState();if(cloudUser)await pullCloud()});
-}
-async function signInGoogle(){
-  setSyncState('Opening Google…');
-  const {error}=await cloud.auth.signInWithOAuth({provider:'google',options:{redirectTo:APP_URL}});
-  if(error)setSyncState(error.message,true);
+  renderAuthState();
+  if(syncKey)await pullCloud();
 }
 function iso(dt=new Date()){const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');return `${y}-${m}-${d}`}
 function parseDate(s){const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d,12,0,0)}
@@ -328,8 +388,9 @@ const diaryFilter=document.getElementById('diaryFilter');diaryFilter.innerHTML='
 document.getElementById('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{data=normalize(JSON.parse(await f.text()));save();renderAll();alert('Imported successfully.')}catch(err){alert('Invalid backup file.')}e.target.value=''});
 document.getElementById('resetBtn').addEventListener('click',()=>{if(confirm('Reset all tracker data?')){data=emptyData();save();activeDate=iso();renderAll()}});
 
-document.getElementById('loginBtn').addEventListener('click',signInGoogle);
-document.getElementById('logoutBtn').addEventListener('click',()=>cloud.auth.signOut());
+document.getElementById('loginBtn').addEventListener('click',enableSync);
+document.getElementById('syncKeyBtn').addEventListener('click',copySyncKey);
+document.getElementById('logoutBtn').addEventListener('click',disableSync);
 renderAll();
 initCloud();
 })();
