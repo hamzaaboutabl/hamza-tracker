@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hamza Performance Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#0a0e13;--side:#0d1219;--panel:#121922;--panel2:#0f151d;--panel3:#182230;
+  --line:#243142;--text:#f2f6fa;--muted:#91a0b2;--soft:#cbd5df;
+  --college:#65a7ff;--study:#aa95ff;--german:#f0c866;--training:#63d59f;--danger:#ff7f90;
+  --good:#72d9a5;--warn:#f3c86b;--radius:16px;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.app{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:100vh}
+.side{background:var(--side);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{padding:4px 10px 18px}.brand strong{font-size:19px}.brand span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.nav-group{margin:8px 0 14px}.nav-label{padding:0 10px 6px;color:#667588;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}
+.nav{display:grid;gap:4px}.nav button{width:100%;border:1px solid transparent;background:transparent;color:var(--muted);text-align:left;padding:9px 10px;border-radius:10px;font-weight:750;display:flex;align-items:center;gap:9px}.nav button:hover{background:#111925;color:var(--soft)}.nav button.active{background:#182331;border-color:#2a3b4f;color:var(--text)}
+.dot{width:8px;height:8px;border-radius:50%;background:#6e8094;flex:none}.college{--pillar:var(--college)}.study{--pillar:var(--study)}.german{--pillar:var(--german)}.training{--pillar:var(--training)}.dot.college{background:var(--college)}.dot.study{background:var(--study)}.dot.german{background:var(--german)}.dot.training{background:var(--training)}
+main{padding:22px 24px 48px;max-width:1500px;width:100%}
+.head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}.head h1{margin:0;font-size:25px;letter-spacing:-.02em}.sub{color:var(--muted);font-size:12px;margin-top:4px}.top-date{color:var(--muted);font-size:12px;padding-top:5px}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:var(--radius);padding:15px;min-width:0}.card.soft{background:var(--panel2)}
+.card.pillar{position:relative;overflow:hidden}.card.pillar:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--pillar,#71849a)}
+.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}.section-head h3{margin:0;font-size:14px}.section-head p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.metric .label,.tiny{font-size:11px;color:var(--muted)}.metric b{display:block;font-size:24px;margin-top:3px;letter-spacing:-.02em}.metric small{color:var(--muted);font-size:11px}
+.btn{border:1px solid var(--line);background:#172333;color:var(--text);border-radius:10px;padding:9px 11px;font-weight:800}.btn:hover{border-color:#40536b}.btn.primary{background:#edf4fa;color:#09111a;border-color:#edf4fa}.btn.danger{color:#ffb6c0}.btn.small{padding:6px 8px;font-size:11px}.btn.ghost{background:transparent}.btn.pillar-btn{border-color:color-mix(in srgb,var(--pillar) 55%,var(--line));background:color-mix(in srgb,var(--pillar) 10%,var(--panel2))}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.field{display:grid;gap:5px}.field label{font-size:11px;color:var(--muted);font-weight:750}
+input,textarea,select{width:100%;border:1px solid var(--line);background:#0c1219;color:var(--text);border-radius:10px;padding:10px;outline:none}input:focus,textarea:focus,select:focus{border-color:#55708f}textarea{resize:vertical;min-height:92px}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.grow{flex:1;min-width:0}.muted{color:var(--muted)}
+.progress{height:8px;background:#0a1017;border:1px solid var(--line);border-radius:999px;overflow:hidden}.progress span{display:block;height:100%;background:var(--pillar,#70839a);border-radius:999px}.progress-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:6px}
+.pillars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.pillar-mini{border:1px solid var(--line);background:var(--panel2);border-radius:13px;padding:11px}.pillar-mini b{font-size:18px}.pillar-mini .name{display:flex;align-items:center;gap:7px;font-weight:800;margin-bottom:5px}.pillar-mini .name .dot{background:var(--pillar)}
+.quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.quick-card{border:1px solid var(--line);background:var(--panel2);border-radius:14px;padding:12px}.quick-card h4{margin:0 0 8px;font-size:13px}.quick-card .tiny{margin-bottom:8px}.quick-row{display:grid;grid-template-columns:1fr auto;gap:7px}.quick-row .btn{min-width:68px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:999px;padding:7px 10px;font-weight:750}.chip.active{color:var(--text);border-color:var(--pillar,#71849a);background:color-mix(in srgb,var(--pillar,#71849a) 12%,var(--panel2))}
+.diary-compose{display:grid;grid-template-columns:180px 1fr;gap:12px}.category-list{display:grid;gap:7px}.category-list button{border:1px solid var(--line);background:var(--panel2);color:var(--muted);text-align:left;border-radius:10px;padding:9px 10px;font-weight:800}.category-list button.active{color:var(--text);border-color:var(--pillar,#71849a);background:color-mix(in srgb,var(--pillar,#71849a) 12%,var(--panel2))}.prompt-row{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.prompt-row button{border:1px solid var(--line);background:#111a24;color:var(--muted);border-radius:9px;padding:6px 8px;font-size:11px}.prompt-row button:hover{color:var(--text)}
+.auto-summary{display:flex;gap:7px;flex-wrap:wrap}.summary-pill{border:1px solid var(--line);background:#0d141c;border-radius:999px;padding:5px 8px;font-size:10px;color:var(--muted)}
+.diary-list{display:grid;gap:10px}.diary-day{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:13px}.diary-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.note{margin-top:10px;border-left:3px solid var(--pillar,#60748b);background:var(--panel2);border-radius:8px;padding:9px 10px}.note-head{display:flex;justify-content:space-between;gap:8px}.note-cat{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.note p{margin:5px 0 0;white-space:pre-wrap}
+.table-wrap{overflow:auto}.table{width:100%;border-collapse:collapse;min-width:640px}.table th,.table td{padding:9px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}.table th{color:var(--muted);font-weight:750}
+.ref-grid{display:grid;grid-template-columns:repeat(7,minmax(170px,1fr));gap:8px;min-width:1220px}.day{border:1px solid var(--line);background:var(--panel2);border-radius:13px;padding:10px}.day h4{margin:0 0 5px}.event{border-left:3px solid var(--pillar,#70839a);background:#111a24;border-radius:7px;padding:6px 8px;margin:6px 0;font-size:11px}
+.callout{border:1px solid #304157;background:#101a26;border-radius:12px;padding:11px;color:#c9d5e0}.callout b{color:var(--text)}
+.empty{color:var(--muted);padding:8px 0}.scroll{overflow:auto}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:10px;color:var(--muted);font-weight:800}
+details{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:10px}summary{cursor:pointer;font-weight:800;color:var(--soft)}
+.cloud-box{margin:18px 4px 2px;padding:10px;border:1px solid var(--line);background:var(--panel2);border-radius:12px}.cloud-box .btn{width:100%;margin-top:7px}.cloud-status{margin-top:6px;word-break:break-word}
+@media(max-width:1080px){.quick-grid,.pillars{grid-template-columns:repeat(2,minmax(0,1fr))}.g4,.g5{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.cloud-box{display:none}.app{grid-template-columns:1fr}.side{position:sticky;top:0;height:auto;z-index:10;padding:7px;background:rgba(10,14,19,.96);backdrop-filter:blur(10px);border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}.brand,.nav-label{display:none}.nav-group{margin:0;display:inline}.nav{display:flex;min-width:max-content}.nav button{width:auto;white-space:nowrap}main{padding:15px}.diary-compose{grid-template-columns:1fr}.category-list{grid-template-columns:repeat(5,minmax(120px,1fr));overflow:auto}}
+@media(max-width:680px){.g2,.g3,.g4,.g5,.quick-grid,.pillars,.fields{grid-template-columns:1fr}.head{align-items:center}.top-date{display:none}.diary-compose{grid-template-columns:1fr}.category-list{grid-template-columns:repeat(5,minmax(110px,1fr))}.quick-row{grid-template-columns:1fr}.quick-row .btn{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="brand"><strong>Hamza</strong><span>College · Study · German · Training</span></div>
+  <div class="nav-group"><div class="nav-label">Home</div><div class="nav">
+    <button class="active" data-v="dashboard"><span class="dot"></span>Dashboard</button>
+    <button data-v="today"><span class="dot"></span>Today</button>
+    <button data-v="diary"><span class="dot"></span>Diary</button>
+  </div></div>
+  <div class="nav-group"><div class="nav-label">Track</div><div class="nav">
+    <button data-v="college"><span class="dot college"></span>College</button>
+    <button data-v="study"><span class="dot study"></span>Study</button>
+    <button data-v="german"><span class="dot german"></span>German</button>
+    <button data-v="training"><span class="dot training"></span>Training</button>
+  </div></div>
+  <div class="nav-group"><div class="nav-label">Analyze</div><div class="nav">
+    <button data-v="calculations"><span class="dot"></span>Calculations</button>
+  </div></div>
+  <div class="nav-group"><div class="nav-label">System</div><div class="nav">
+    <button data-v="reference"><span class="dot"></span>Reference</button>
+    <button data-v="backup"><span class="dot"></span>Backup</button>
+  </div></div>
+  <div class="cloud-box">
+    <div class="tiny" id="authState">Local mode · checking cloud…</div>
+    <button class="btn small" id="loginBtn">Sign in with Google</button>
+    <button class="btn small" id="logoutBtn" hidden>Sign out</button>
+    <div class="tiny cloud-status" id="syncState"></div>
+  </div>
+</aside>
+
+<main>
+<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Four things only: college, studying, German and training.</div></div><div class="top-date" id="dateNow"></div></div>
+
+<section class="view active" id="dashboard">
+  <div class="grid g5" id="headlineScores"></div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>This week</h3><p>Coverage against the reference schedule.</p></div><button class="btn small" data-jump="calculations">Details</button></div><div id="weekCoverage"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Today</h3><p>Actual time vs reference target.</p></div><button class="btn small" data-jump="today">Log</button></div><div id="todayCoverage"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Recent diary</h3><p>Automatic day context + your notes.</p></div><button class="btn small" data-jump="diary">Open diary</button></div><div id="recentDiary"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Recent totals</h3><p>Last 28 days by pillar.</p></div></div><div id="recentTotals"></div></div>
+  </div>
+</section>
+
+<section class="view" id="today">
+  <div class="grid g2">
+    <div class="card"><div class="section-head"><div><h3>Day</h3><p>Log any date, not only today.</p></div><span id="daySaveStatus" class="tiny">Not confirmed</span></div>
+      <div class="fields"><div class="field"><label>Date</label><input id="activeDate" type="date"></div><div class="field"><label>Reference day</label><input id="activeDayName" disabled></div></div>
+      <div id="todayPillars" class="pillars" style="margin-top:12px"></div>
+    </div>
+    <div class="card"><div class="section-head"><div><h3>Fast log</h3><p>Add actual time with as little typing as possible.</p></div></div><div class="quick-grid" id="quickLogGrid"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Diary note</h3><p>Your activity data is inserted automatically; write only context.</p></div></div><div id="quickDiaryCategory" class="chips"></div><div class="prompt-row" id="quickPrompts"></div><textarea id="quickDiaryText" placeholder="What actually mattered today?"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px"><button class="btn" id="addQuickDiary">Add note</button><span class="tiny" id="quickDiaryMsg"></span></div></div>
+    <div class="card"><div class="section-head"><div><h3>Confirm the day</h3><p>Missing data stays missing until you explicitly close the day.</p></div></div><div class="callout"><b>Why confirm?</b> It lets the calculations tell the difference between “I did 0 hours” and “I forgot to log.”</div><button class="btn primary" id="confirmDay" style="margin-top:10px">Confirm day as fully logged</button><details style="margin-top:10px"><summary>Adjust this date's reference targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save date override</button></details></div>
+  </div>
+</section>
+
+<section class="view" id="diary">
+  <div class="grid g2">
+    <div class="card"><div class="section-head"><div><h3>Write a note</h3><p>Pick a category first; the diary supplies the day context automatically.</p></div></div>
+      <div class="diary-compose"><div class="category-list" id="diaryCategoryList"></div><div><div class="fields"><div class="field"><label>Date</label><input id="diaryDate" type="date"></div><div class="field"><label>Category</label><input id="diaryCategoryDisplay" disabled></div></div><div class="prompt-row" id="diaryPrompts"></div><textarea id="diaryText" placeholder="Write the part that isn't already in the tracker..."></textarea><button class="btn" id="addDiary" style="margin-top:8px">Add diary note</button></div></div>
+    </div>
+    <div class="card"><div class="section-head"><div><h3>Auto context</h3><p>What the diary already knows for the selected date.</p></div></div><div id="diaryAutoContext"></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Diary history</h3><p>Search by text or filter by one of the four pillars.</p></div></div><div class="fields"><div class="field"><label>Search</label><input id="diarySearch" placeholder="Search notes..."></div><div class="field"><label>Filter</label><select id="diaryFilter"></select></div></div><div class="diary-list" id="diaryHistory" style="margin-top:12px"></div></div>
+</section>
+
+<section class="view" id="college"><div id="collegePage"></div></section>
+<section class="view" id="study"><div id="studyPage"></div></section>
+<section class="view" id="german"><div id="germanPage"></div></section>
+<section class="view" id="training"><div id="trainingPage"></div></section>
+
+<section class="view" id="calculations">
+  <div class="grid g5" id="calcHeadline"></div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Routine coverage</h3><p>Current week by pillar.</p></div></div><div id="calcCoverage"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Trend diagnostics</h3><p>The supporting numbers behind the headline scores.</p></div></div><div id="trendDiagnostics"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Data status</h3><p>Unconfirmed days never count as zero.</p></div></div><div id="dataStatus"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Per-pillar form</h3><p>Recent completion by college, study, German and training.</p></div></div><div id="pillarForm"></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>What the system calculates</h3><p>Five headline metrics; everything else is diagnostic.</p></div></div><div class="grid g3" id="calculationGlossary"></div></div>
+</section>
+
+<section class="view" id="reference">
+  <div class="card"><div class="section-head"><div><h3>GOAT reference schedule</h3><p>A reference point, not a pass/fail timetable.</p></div><span class="tiny">College 12h · Study 17h · German 5h · Training 18h</span></div><div class="scroll"><div class="ref-grid" id="referenceGrid"></div></div></div>
+</section>
+
+<section class="view" id="backup">
+  <div class="grid g2"><div class="card"><div class="section-head"><div><h3>Backup</h3><p>Stored locally in this browser, with automatic cloud sync when signed in.</p></div></div><button class="btn" id="exportBtn">Export JSON</button> <label class="btn" for="importFile">Import JSON</label><input id="importFile" type="file" accept="application/json" hidden></div><div class="card"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div></div>
+</section>
+</main>
+</div>
+
+<script>
+(()=>{
+'use strict';
+const SUPABASE_URL='https://firnmcqtjprckgqdcplg.supabase.co';
+const SUPABASE_KEY='sb_publishable_oG0bcYmr6nijxKeY02U0YA_iHnp79gZ';
+const cloud=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const KEY='hamzaPerformanceTrackerV7';
+const OLD_KEYS=['hamzaPerformanceTrackerV6','hamzaLifeTrackerV5','hamzaLifeTrackerLiteV1','hamzaLifeTrackerV4'];
+const PILLARS=['College','Study','German','Training'];
+const pillarClass={College:'college',Study:'study',German:'german',Training:'training'};
+const subjects=['Accounting','Statistics','Management','Intro to Computers','English','Custom'];
+const types={
+  College:['Lecture','Section','Other'],
+  Study:subjects,
+  German:['Course','Self-study','Practice','Other'],
+  Training:['Gymnastics','Mobility','Fitness','Other']
+};
+const diaryCategories=['Day Summary','College','Study','German','Training'];
+const diaryPrompts=['Win','Problem','Learned','Changed','Next step'];
+const reference={
+  Saturday:{college:4,study:2,german:0,training:3,events:[['College','09:00–13:00','college'],['Training','13:00–16:00','training'],['Study','18:00–20:00','study']]},
+  Sunday:{college:0,study:2,german:0,training:4,events:[['Study','10:00–12:00','study'],['Training','18:00–22:00','training']]},
+  Monday:{college:6,study:2,german:2.5,training:0,events:[['College','09:00–15:00','college'],['Study','16:30–18:30','study'],['German','19:30–22:00','german']]},
+  Tuesday:{college:0,study:5,german:0,training:4,events:[['Study','10:00–16:00 · 5h actual','study'],['Training','18:00–22:00','training']]},
+  Wednesday:{college:0,study:4,german:0,training:4,events:[['Study','10:00–15:00 · 4h actual','study'],['Training','18:00–22:00','training']]},
+  Thursday:{college:2,study:0,german:2.5,training:3,events:[['Sections','11:00–13:00','college'],['Training','13:30–16:30','training'],['German','19:30–22:00','german']]},
+  Friday:{college:0,study:2,german:0,training:0,events:[['Study','10:00–12:00','study']]}
+};
+const weeklyTargets={College:12,Study:17,German:5,Training:18};
+let data=loadData();
+let activeDate=iso();
+let quickDiaryCategory='Day Summary';
+let diaryCategory='Day Summary';
+let cloudUser=null;
+let syncTimer=null;
+
+function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[]},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
+function normalize(d){
+  const out=emptyData();
+  if(!d||typeof d!=='object')return out;
+  out.days=d.days&&typeof d.days==='object'?d.days:{};
+  out.diary=Array.isArray(d.diary)?d.diary:[];
+  out.settings={...out.settings,...(d.settings||{})};
+  if(d.sessions&&typeof d.sessions==='object')PILLARS.forEach(p=>out.sessions[p]=Array.isArray(d.sessions[p])?d.sessions[p]:[]);
+  if(Array.isArray(d.study)&&!out.sessions.Study.length){
+    out.sessions.Study=d.study.map(x=>({id:x.id||uid('s'),date:x.date,type:x.subject||'Study',hours:Number(x.hours)||0,note:x.note||'',createdAt:x.createdAt||new Date().toISOString()}));
+  }
+  if(!d.sessions){
+    Object.entries(out.days).forEach(([date,day])=>{
+      const acts=day?.acts||{};
+      ['College','German','Training'].forEach(p=>{const h=Number(acts[p]);if(Number.isFinite(h)&&h>0)out.sessions[p].push({id:uid(p[0].toLowerCase()),date,type:p==='College'?'Other':p==='German'?'Course':'Other',hours:h,note:'Migrated from previous tracker',createdAt:new Date().toISOString()})});
+    });
+  }
+  return out;
+}
+function loadData(){
+  try{const raw=localStorage.getItem(KEY);if(raw)return normalize(JSON.parse(raw));}catch(e){}
+  for(const k of OLD_KEYS){try{const raw=localStorage.getItem(k);if(raw){const d=normalize(JSON.parse(raw));localStorage.setItem(KEY,JSON.stringify(d));return d}}catch(e){}}
+  return emptyData();
+}
+function save(sync=true){
+  data.settings={...(data.settings||{}),lastModified:new Date().toISOString()};
+  localStorage.setItem(KEY,JSON.stringify(data));
+  if(sync)queueCloudSync();
+}
+function setSyncState(msg,bad=false){const el=document.getElementById('syncState');if(!el)return;el.textContent=msg;el.style.color=bad?'var(--danger)':'var(--muted)'}
+function renderAuthState(){
+  const state=document.getElementById('authState'),login=document.getElementById('loginBtn'),logout=document.getElementById('logoutBtn');
+  if(!state||!login||!logout)return;
+  if(cloudUser){state.textContent=cloudUser.email||'Signed in';login.hidden=true;logout.hidden=false}
+  else{state.textContent='Local mode · sign in to sync';login.hidden=false;logout.hidden=true;setSyncState('')}
+}
+function queueCloudSync(){if(!cloudUser)return;clearTimeout(syncTimer);syncTimer=setTimeout(pushCloud,700)}
+async function pushCloud(){
+  if(!cloudUser)return;
+  setSyncState('Syncing…');
+  const {error}=await cloud.from('tracker_state').upsert({user_id:cloudUser.id,payload:data,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+  setSyncState(error?'Sync failed: '+error.message:'Synced',!!error);
+}
+async function pullCloud(){
+  if(!cloudUser)return;
+  setSyncState('Checking cloud…');
+  const {data:row,error}=await cloud.from('tracker_state').select('payload,updated_at').eq('user_id',cloudUser.id).maybeSingle();
+  if(error){setSyncState('Cloud error: '+error.message,true);return}
+  if(!row){await pushCloud();return}
+  const localTime=Date.parse(data.settings?.lastModified||0),cloudTime=Date.parse(row.payload?.settings?.lastModified||row.updated_at||0);
+  if(cloudTime>localTime){data=normalize(row.payload);localStorage.setItem(KEY,JSON.stringify(data));renderAll();setSyncState('Cloud data loaded')}
+  else if(localTime>cloudTime){await pushCloud()}
+  else setSyncState('Synced');
+}
+async function initCloud(){
+  const {data:{session}}=await cloud.auth.getSession();cloudUser=session?.user||null;renderAuthState();if(cloudUser)await pullCloud();
+  cloud.auth.onAuthStateChange(async(_event,session)=>{cloudUser=session?.user||null;renderAuthState();if(cloudUser)await pullCloud()});
+}
+async function signInGoogle(){
+  setSyncState('Opening Google…');
+  const {error}=await cloud.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
+  if(error)setSyncState(error.message,true);
+}
+function iso(dt=new Date()){const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');return `${y}-${m}-${d}`}
+function parseDate(s){const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d,12,0,0)}
+function addDays(s,n){const d=parseDate(s);d.setDate(d.getDate()+n);return iso(d)}
+function dayName(s){return parseDate(s).toLocaleDateString('en-US',{weekday:'long'})}
+function prettyDate(s){return parseDate(s).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}
+function dateRange(end,n){return Array.from({length:n},(_,i)=>addDays(end,-(n-1-i)))}
+function weekDates(date=iso()){const d=parseDate(date),js=d.getDay(),daysFromSat=(js+1)%7,start=addDays(date,-daysFromSat);return Array.from({length:7},(_,i)=>addDays(start,i))}
+function monthDates(date=iso()){const d=parseDate(date),y=d.getFullYear(),m=d.getMonth(),last=new Date(y,m+1,0).getDate();return Array.from({length:last},(_,i)=>iso(new Date(y,m,i+1,12)))}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function avg(xs){return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null}
+function sd(xs){if(xs.length<2)return 0;const m=avg(xs);return Math.sqrt(xs.reduce((s,x)=>s+(x-m)**2,0)/xs.length)}
+function fmt(x,d=1){return Number.isFinite(Number(x))?Number(x).toFixed(d).replace(/\.0$/,''):'0'}
+function uid(prefix='x'){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function escapeHtml(s=''){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
+function target(date,pillar){const override=data.days[date]?.overrides?.[pillar];if(override!==undefined&&override!==null&&override!=='')return Number(override)||0;return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0)}
+function sessionHours(date,pillar){return data.sessions[pillar].filter(x=>x.date===date).reduce((s,x)=>s+Number(x.hours||0),0)}
+function totalHours(dates,pillar){return dates.reduce((s,d)=>s+sessionHours(d,pillar),0)}
+function hasTarget(date){return PILLARS.some(p=>target(date,p)>0)}
+function completionPart(date,pillar){const t=target(date,pillar);if(t<=0)return null;return clamp(sessionHours(date,pillar)/t,0,1)*100}
+function dailyScore(date){if(!data.days[date]?.confirmed)return null;const parts=PILLARS.map(p=>completionPart(date,p)).filter(x=>x!==null);return parts.length?avg(parts):null}
+function confirmedScores(dates){return dates.map(d=>dailyScore(d)).filter(x=>x!==null)}
+function recentWindowScores(n=14,end=iso()){return confirmedScores(dateRange(end,n).filter(hasTarget))}
+function consistency(){const scores=recentWindowScores(28);if(scores.length<5)return null;const mean=avg(scores),stability=Math.exp(-sd(scores)/28);return clamp(mean*(0.7+0.3*stability),0,100)}
+function growth(){const recent=recentWindowScores(14),prior=recentWindowScores(14,addDays(iso(),-14));if(recent.length<4||prior.length<4)return null;const a=avg(recent),b=avg(prior);if(b===0)return a>0?100:0;return clamp((a-b)/b*100,-100,100)}
+function baselineScore(){const dates=Object.keys(data.days).filter(d=>data.days[d]?.confirmed&&hasTarget(d)).sort();const vals=dates.map(d=>dailyScore(d)).filter(x=>x!==null);if(vals.length<5)return null;return avg(vals.slice(0,Math.min(14,vals.length)))}
+function recentScore(){const vals=recentWindowScores(14);return vals.length>=4?avg(vals):null}
+function progress(){const b=baselineScore(),r=recentScore();if(b===null||r===null||b>=99.5)return null;return clamp((r-b)/(100-b)*100,-100,100)}
+function confidence(){const targetDates=dateRange(iso(),28).filter(hasTarget),logged=targetDates.filter(d=>data.days[d]?.confirmed).length;if(!targetDates.length)return 0;const coverage=logged/targetDates.length,maturity=Math.min(1,Object.values(data.days).filter(x=>x?.confirmed).length/28);return 100*(0.75*coverage+0.25*maturity)}
+function scoreSet(){return {Completion:dailyScore(iso()),Consistency:consistency(),Growth:growth(),Progress:progress(),Confidence:confidence()}}
+function weekCoverage(){const ds=weekDates();const out={};PILLARS.forEach(p=>{const actual=totalHours(ds,p),targetSum=ds.reduce((s,d)=>s+target(d,p),0);out[p]={actual,target:targetSum,pct:targetSum?clamp(actual/targetSum*100,0,100):null}});return out}
+function daySummary(date){const bits=[];PILLARS.forEach(p=>{const h=sessionHours(date,p);if(h>0)bits.push(`${p} ${fmt(h)}h`)});const notes=data.diary.filter(x=>x.date===date).length;if(notes)bits.push(`${notes} diary note${notes===1?'':'s'}`);return bits}
+function pillarRecentCompletion(pillar){const dates=dateRange(iso(),28).filter(d=>target(d,pillar)>0&&data.days[d]?.confirmed);const vals=dates.map(d=>completionPart(d,pillar)).filter(x=>x!==null);return vals.length>=2?avg(vals):null}
+function addSession(pillar,date,type,hours,note=''){const h=Number(hours);if(!date||!Number.isFinite(h)||h<=0)return false;data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});save();return true}
+function addDiaryEntry(date,category,text){const t=String(text||'').trim();if(!t)return false;data.diary.push({id:uid('d'),date,category,text:t,createdAt:new Date().toISOString()});save();return true}
+function setView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===id));const titles={dashboard:['Dashboard','College · Study · German · Training, nothing else.'],today:['Today','Fast logging and confirmation.'],diary:['Diary','Automatic context, structured notes.'],college:['College','Lectures and sections.'],study:['Study','BIS study sessions by subject.'],german:['German','Course and independent German work.'],training:['Training','Training sessions and volume.'],calculations:['Calculations','Completion, consistency, growth, progress and confidence.'],reference:['Reference','The GOAT schedule remains a benchmark.'],backup:['Backup','Export, import or reset local data.']};document.getElementById('title').textContent=titles[id][0];document.getElementById('subtitle').textContent=titles[id][1];window.scrollTo({top:0,behavior:'smooth'})}
+function scoreCard(label,value,desc){let shown='—';if(value!==null&&value!==undefined){if(label==='Growth')shown=(value>=0?'+':'')+fmt(value,1)+'%';else shown=fmt(value,0)}return `<div class="card"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`}
+function coverageHtml(items){return PILLARS.map(p=>{const x=items[p],pct=x?.pct??0;return `<div class="row ${pillarClass[p]}"><div class="grow"><div class="progress-meta"><b>${p}</b><span class="tiny">${fmt(x.actual)} / ${fmt(x.target)}h</span></div><div class="progress ${pillarClass[p]}"><span style="width:${pct}%"></span></div></div><b>${x.target?Math.round(pct)+'%':'—'}</b></div>`}).join('')}
+function renderHeadline(){const s=scoreSet();document.getElementById('headlineScores').innerHTML=[scoreCard('Completion',s.Completion,'today'),scoreCard('Consistency',s.Consistency,'recent reliability'),scoreCard('Growth',s.Growth,'recent vs prior'),scoreCard('Progress',s.Progress,'from baseline'),scoreCard('Confidence',s.Confidence,'data quality')].join('');document.getElementById('calcHeadline').innerHTML=document.getElementById('headlineScores').innerHTML}
+function renderDashboard(){document.getElementById('weekCoverage').innerHTML=coverageHtml(weekCoverage());const today={};PILLARS.forEach(p=>{const t=target(iso(),p),a=sessionHours(iso(),p);today[p]={actual:a,target:t,pct:t?clamp(a/t*100,0,100):null}});document.getElementById('todayCoverage').innerHTML=coverageHtml(today);
+  const recent=[...data.diary].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,5);document.getElementById('recentDiary').innerHTML=recent.length?recent.map(n=>`<div class="row"><div class="grow"><b>${escapeHtml(n.category)}</b><div class="tiny">${prettyDate(n.date)} · ${escapeHtml(n.text.slice(0,80))}${n.text.length>80?'…':''}</div></div></div>`).join(''):'<div class="empty">No diary notes yet.</div>';
+  const ds=dateRange(iso(),28);document.getElementById('recentTotals').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">last 28 days</div></div><b>${fmt(totalHours(ds,p))}h</b></div>`).join('')}
+function quickTypeOptions(pillar,date){if(pillar==='Study')return subjects.filter(x=>x!=='Custom');if(pillar==='College'){const dn=dayName(date);if(dn==='Thursday')return ['Section','Lecture','Other'];return ['Lecture','Section','Other']}return types[pillar]}
+function renderToday(){document.getElementById('activeDate').value=activeDate;document.getElementById('activeDayName').value=dayName(activeDate);document.getElementById('daySaveStatus').textContent=data.days[activeDate]?.confirmed?'Confirmed':'Not confirmed';
+  document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{const t=target(activeDate,p),a=sessionHours(activeDate,p),pct=t?clamp(a/t*100,0,100):null;return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${fmt(a)}h</b><div class="tiny">${t?`reference ${fmt(t)}h · ${Math.round(pct)}%`:'no reference target'}</div></div>`}).join('');
+  document.getElementById('quickLogGrid').innerHTML=PILLARS.map(p=>`<div class="quick-card ${pillarClass[p]}"><h4>${p}</h4><div class="tiny">${target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target today — logging still allowed'}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-row" style="margin-top:7px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`).join('');
+  document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>{const p=b.dataset.quickAdd;if(addSession(p,activeDate,document.getElementById('quickType'+p).value,document.getElementById('quickHours'+p).value)){document.getElementById('quickHours'+p).value='';renderAll()}});
+  document.getElementById('quickDiaryCategory').innerHTML=diaryCategories.map(c=>`<button type="button" class="chip ${pillarClass[c]||''} ${c===quickDiaryCategory?'active':''}" data-qcat="${c}">${c}</button>`).join('');document.querySelectorAll('[data-qcat]').forEach(b=>b.onclick=()=>{quickDiaryCategory=b.dataset.qcat;renderToday()});
+  document.getElementById('quickPrompts').innerHTML=diaryPrompts.map(p=>`<button type="button" data-qprompt="${p}">${p}</button>`).join('');document.querySelectorAll('[data-qprompt]').forEach(b=>b.onclick=()=>{const ta=document.getElementById('quickDiaryText');ta.value=(ta.value?ta.value+'\n':'')+b.dataset.qprompt+': ';ta.focus()});
+  document.getElementById('overrideFields').innerHTML=PILLARS.map(p=>`<div class="field"><label>${p} target hours</label><input data-override="${p}" type="number" min="0" step="0.25" value="${target(activeDate,p)}"></div>`).join('')}
+function renderDiaryCategories(){document.getElementById('diaryCategoryList').innerHTML=diaryCategories.map(c=>`<button type="button" class="${pillarClass[c]||''} ${c===diaryCategory?'active':''}" data-dcat="${c}">${c}</button>`).join('');document.querySelectorAll('[data-dcat]').forEach(b=>b.onclick=()=>{diaryCategory=b.dataset.dcat;renderDiaryCategories()});document.getElementById('diaryCategoryDisplay').value=diaryCategory}
+function renderDiaryAutoContext(){const date=document.getElementById('diaryDate').value||iso(),bits=daySummary(date);const score=dailyScore(date);document.getElementById('diaryAutoContext').innerHTML=`<div class="auto-summary">${bits.length?bits.map(x=>`<span class="summary-pill">${escapeHtml(x)}</span>`).join(''):'<span class="summary-pill">No tracked activity yet</span>'}${score!==null?`<span class="summary-pill">Completion ${Math.round(score)}</span>`:''}</div><div class="tiny" style="margin-top:9px">This context is generated from your logs automatically. You do not need to rewrite it in the diary.</div>`}
+function renderDiary(){renderDiaryCategories();renderDiaryAutoContext();document.getElementById('diaryPrompts').innerHTML=diaryPrompts.map(p=>`<button type="button" data-dprompt="${p}">${p}</button>`).join('');document.querySelectorAll('[data-dprompt]').forEach(b=>b.onclick=()=>{const ta=document.getElementById('diaryText');ta.value=(ta.value?ta.value+'\n':'')+b.dataset.dprompt+': ';ta.focus()});
+  const q=document.getElementById('diarySearch').value.trim().toLowerCase(),filter=document.getElementById('diaryFilter').value;const dates=new Set([...Object.keys(data.days),...PILLARS.flatMap(p=>data.sessions[p].map(x=>x.date)),...data.diary.map(x=>x.date)]);let ordered=[...dates].sort().reverse();const html=[];for(const date of ordered){const notes=data.diary.filter(x=>x.date===date).filter(n=>(!filter||n.category===filter)&&(!q||n.text.toLowerCase().includes(q)||n.category.toLowerCase().includes(q)));if((filter||q)&&!notes.length)continue;const bits=daySummary(date);html.push(`<article class="diary-day"><div class="diary-head"><div><b>${prettyDate(date)}</b><div class="tiny">${data.days[date]?.confirmed?'Day confirmed':'Day not confirmed'}</div></div>${dailyScore(date)!==null?`<span class="badge">${Math.round(dailyScore(date))} completion</span>`:''}</div><div class="auto-summary" style="margin-top:9px">${bits.map(x=>`<span class="summary-pill">${escapeHtml(x)}</span>`).join('')}</div>${notes.map(n=>`<div class="note ${pillarClass[n.category]||''}"><div class="note-head"><span class="note-cat">${escapeHtml(n.category)}</span><button class="btn small ghost" data-del-note="${n.id}">Delete</button></div><p>${escapeHtml(n.text)}</p></div>`).join('')}</article>`)}document.getElementById('diaryHistory').innerHTML=html.join('')||'<div class="empty">No diary entries match this filter.</div>';document.querySelectorAll('[data-del-note]').forEach(b=>b.onclick=()=>{data.diary=data.diary.filter(x=>x.id!==b.dataset.delNote);save();renderAll()})}
+function sessionPageHtml(pillar){const cls=pillarClass[pillar],week=weekDates(),month=monthDates(),all=data.sessions[pillar].reduce((s,x)=>s+Number(x.hours||0),0),w=totalHours(week,pillar),m=totalHours(month,pillar);let extra='';if(pillar==='Study'){const by={};data.sessions.Study.filter(x=>month.includes(x.date)).forEach(x=>by[x.type]=(by[x.type]||0)+Number(x.hours||0));extra=`<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>This month by subject</h3><p>Automatic subject breakdown.</p></div></div>${Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="row"><div class="grow">${escapeHtml(k)}</div><b>${fmt(v)}h</b></div>`).join(''):'<div class="empty">No study data this month.</div>'}</div>`}
+  const rows=[...data.sessions[pillar]].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,60).map(x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.type)}</td><td>${fmt(x.hours)}h</td><td>${escapeHtml(x.note||'')}</td><td><button class="btn small" data-del-session="${pillar}|${x.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No sessions yet.</td></tr>';
+  return `<div class="grid g2"><div class="card pillar ${cls}"><div class="section-head"><div><h3>Add ${pillar.toLowerCase()} session</h3><p>Fast entry; details are optional.</p></div></div><form data-session-form="${pillar}"><div class="fields"><div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div><div class="field"><label>${pillar==='Study'?'Subject':'Type'}</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div></div><div class="fields" style="margin-top:10px"><div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div><div class="field"><label>Note</label><input name="note" placeholder="Optional"></div></div><div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,2.5,3,4].map(h=>`<button type="button" class="chip ${cls}" data-fill-hours="${h}">${h}h</button>`).join('')}</div><button class="btn pillar-btn ${cls}" style="margin-top:9px">Add session</button></form></div><div class="card"><div class="section-head"><div><h3>${pillar} totals</h3><p>Tracked time only.</p></div></div><div class="grid g3"><div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div><div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div><div class="metric"><span class="label">All time</span><b>${fmt(all)}h</b></div></div></div></div>${extra}<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Recent ${pillar.toLowerCase()} sessions</h3><p>Newest first.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>${pillar==='Study'?'Subject':'Type'}</th><th>Hours</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`}
+function renderPillarPages(){PILLARS.forEach(p=>{document.getElementById(p.toLowerCase()+'Page').innerHTML=sessionPageHtml(p)});document.querySelectorAll('[data-session-form]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();const p=form.dataset.sessionForm,fd=new FormData(form);if(addSession(p,fd.get('date'),fd.get('type'),fd.get('hours'),fd.get('note'))){form.querySelector('[name="hours"]').value='';form.querySelector('[name="note"]').value='';renderAll()}}));document.querySelectorAll('[data-fill-hours]').forEach(b=>b.onclick=()=>{const form=b.closest('form');form.querySelector('[name="hours"]').value=b.dataset.fillHours});document.querySelectorAll('[data-del-session]').forEach(b=>b.onclick=()=>{const [p,id]=b.dataset.delSession.split('|');data.sessions[p]=data.sessions[p].filter(x=>x.id!==id);save();renderAll()})}
+function renderCalculations(){document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());const recent=recentScore(),base=baselineScore(),scores=recentWindowScores(28);document.getElementById('trendDiagnostics').innerHTML=`<div class="row"><div class="grow">Recent performance</div><b>${recent===null?'—':fmt(recent,1)}</b></div><div class="row"><div class="grow">Starting baseline</div><b>${base===null?'—':fmt(base,1)}</b></div><div class="row"><div class="grow">28-day volatility</div><b>${scores.length<5?'—':fmt(sd(scores),1)}</b></div><div class="row"><div class="grow">Momentum</div><b>${growth()===null?'—':growth()>3?'↑ Positive':growth()<-3?'↓ Negative':'→ Stable'}</b></div>`;
+  const td=dateRange(iso(),28).filter(hasTarget),logged=td.filter(d=>data.days[d]?.confirmed).length;document.getElementById('dataStatus').innerHTML=`<div class="row"><div class="grow">Reference days in window</div><b>${td.length}</b></div><div class="row"><div class="grow">Confirmed days</div><b>${logged}</b></div><div class="row"><div class="grow">Missing days</div><b>${td.length-logged}</b></div><div class="row"><div class="grow">Rule</div><b>Missing ≠ zero</b></div>`;
+  document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow">${p}<div class="tiny">28-day confirmed-target average</div></div><b>${pillarRecentCompletion(p)===null?'—':fmt(pillarRecentCompletion(p),0)}</b></div>`).join('');
+  const glossary=[['Completion','How much of today’s applicable college / study / German / training reference you completed.'],['Consistency','How strong and stable your completion has been across recent confirmed reference days.'],['Growth','Whether recent performance is higher or lower than the previous comparable period.'],['Progress','How much distance you have closed from your starting baseline toward the reference.'],['Confidence','How complete and mature the data is behind the other calculations.'],['Diagnostics','Per-pillar coverage, recent form, volatility and momentum explain why the headline numbers moved.']];document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('')}
+function renderReference(){document.getElementById('referenceGrid').innerHTML=Object.entries(reference).map(([d,r])=>`<div class="day"><h4>${d}</h4><div class="tiny">College ${r.college}h · Study ${r.study}h · German ${r.german}h · Training ${r.training}h</div>${r.events.map(e=>`<div class="event ${e[2]}"><b>${e[0]}</b><div>${e[1]}</div></div>`).join('')}</div>`).join('')}
+function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderDiary();renderPillarPages();renderCalculations();renderReference()}
+
+// Navigation
+[...document.querySelectorAll('.nav button')].forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));[...document.querySelectorAll('[data-jump]')].forEach(b=>b.addEventListener('click',()=>setView(b.dataset.jump)));
+// Today
+const activeDateInput=document.getElementById('activeDate');activeDateInput.addEventListener('change',e=>{activeDate=e.target.value||iso();renderToday()});
+document.getElementById('confirmDay').addEventListener('click',()=>{data.days[activeDate]={...(data.days[activeDate]||{}),confirmed:true,confirmedAt:new Date().toISOString()};save();renderAll()});
+document.getElementById('saveOverrides').addEventListener('click',()=>{const o={};document.querySelectorAll('[data-override]').forEach(i=>o[i.dataset.override]=Number(i.value)||0);data.days[activeDate]={...(data.days[activeDate]||{}),overrides:o};save();renderAll()});
+document.getElementById('addQuickDiary').addEventListener('click',()=>{const ok=addDiaryEntry(activeDate,quickDiaryCategory,document.getElementById('quickDiaryText').value);document.getElementById('quickDiaryMsg').textContent=ok?'Added.':'Write something first.';if(ok){document.getElementById('quickDiaryText').value='';renderAll()}});
+// Diary
+const diaryFilter=document.getElementById('diaryFilter');diaryFilter.innerHTML='<option value="">All categories</option>'+diaryCategories.map(c=>`<option>${c}</option>`).join('');document.getElementById('diaryDate').value=iso();document.getElementById('diaryDate').addEventListener('change',renderDiaryAutoContext);document.getElementById('addDiary').addEventListener('click',()=>{if(addDiaryEntry(document.getElementById('diaryDate').value||iso(),diaryCategory,document.getElementById('diaryText').value)){document.getElementById('diaryText').value='';renderAll()}});document.getElementById('diarySearch').addEventListener('input',renderDiary);diaryFilter.addEventListener('change',renderDiary);
+// Backup
+ document.getElementById('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hamza-performance-tracker-${iso()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500)});
+document.getElementById('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{data=normalize(JSON.parse(await f.text()));save();renderAll();alert('Imported successfully.')}catch(err){alert('Invalid backup file.')}e.target.value=''});
+document.getElementById('resetBtn').addEventListener('click',()=>{if(confirm('Reset all tracker data?')){data=emptyData();save();activeDate=iso();renderAll()}});
+
+document.getElementById('loginBtn').addEventListener('click',signInGoogle);
+document.getElementById('logoutBtn').addEventListener('click',()=>cloud.auth.signOut());
+renderAll();
+initCloud();
+})();
+</script>
+</body>
+</html>
