@@ -470,7 +470,7 @@ body{
 
 <section class="view" id="reference">
   <div class="card">
-    <div class="section-head"><div><h3>GOAT reference schedule</h3><p>A benchmark, not a pass/fail timetable.</p></div><span class="tiny">College 7 attendances · Study 17h · German 2 sessions · Training 18h</span></div>
+    <div class="section-head"><div><h3>GOAT reference schedule</h3><p>A benchmark, not a pass/fail timetable.</p></div><span class="tiny">College 7 attendances · Study 17h · German course 5h + study 4h · Training 18h</span></div>
     <div class="scroll"><div class="ref-grid" id="referenceGrid"></div></div>
   </div>
 
@@ -529,13 +529,16 @@ const attendanceSchedule={
 const reference={
   Saturday:{college:2,study:2,german:0,training:3,events:[['College','2 lectures · Computers + English · 09:00–13:00','college'],['Training','13:00–16:00','training'],['Study','18:00–20:00','study']]},
   Sunday:{college:0,study:2,german:0,training:4,events:[['Study','10:00–12:00','study'],['Training','18:00–22:00','training']]},
-  Monday:{college:3,study:2,german:1,training:0,events:[['College','3 lectures · Accounting + Management + Statistics · 09:00–15:00','college'],['Study','16:30–18:30','study'],['German','Course attendance · 19:30–22:00','german']]},
+  Monday:{college:3,study:2,german:1,training:0,events:[['College','3 lectures · Accounting + Management + Statistics · 09:00–15:00','college'],['Study','16:30–18:30','study'],['German','Course attendance · 2.5h · 19:30–22:00','german']]},
   Tuesday:{college:0,study:5,german:0,training:4,events:[['Study','10:00–16:00 · 5h actual','study'],['Training','18:00–22:00','training']]},
   Wednesday:{college:0,study:4,german:0,training:4,events:[['Study','10:00–15:00 · 4h actual','study'],['Training','18:00–22:00','training']]},
   Thursday:{college:2,study:0,german:1,training:3,events:[['Computers section','10:00–11:00','college'],['Accounting section','11:00–12:00','college'],['Training','13:30–16:30','training'],['German','Course attendance · 19:30–22:00','german']]},
   Friday:{college:0,study:2,german:0,training:0,events:[['Study','10:00–12:00','study']]}
 };
 const weeklyTargets={College:7,Study:17,German:2,Training:18};
+const GERMAN_START='2026-10-12';
+const GERMAN_COURSE_WEEKLY_HOURS=5;
+const GERMAN_STUDY_WEEKLY_TARGET=4;
 let data=loadData();
 let activeDate=iso();
 let cloudUser=null;
@@ -611,6 +614,7 @@ function telemetryPayload(){
     college_attendance_pct:attendancePct('College'),
     study_hours_28d:totalActual(ds,'Study'),
     german_attendance_pct:attendancePct('German'),
+    german_study_hours_28d:totalGermanStudyHours(ds),
     training_hours_28d:totalActual(ds,'Training')
   };
 }
@@ -633,7 +637,7 @@ async function loadAdmin(){
   const box=document.getElementById('adminUsers'),summary=document.getElementById('adminSummary');
   if(box)box.innerHTML='<div class="empty">Loading…</div>';
   const {data:rows,error}=await cloud.from('performance_telemetry')
-    .select('user_key,updated_at,confirmed_days_28d,completion,consistency,growth,progress,confidence,college_attendance_pct,study_hours_28d,german_attendance_pct,training_hours_28d')
+    .select('user_key,updated_at,confirmed_days_28d,completion,consistency,growth,progress,confidence,college_attendance_pct,study_hours_28d,german_attendance_pct,german_study_hours_28d,training_hours_28d')
     .order('updated_at',{ascending:false});
   if(error){if(box)box.innerHTML='<div class="empty">Could not load analytics.</div>';return}
   const todayIso=iso();
@@ -657,8 +661,9 @@ async function loadAdmin(){
       <div class="admin-metric"><span>Completion</span><b>${pct(r.completion)}</b></div>
       <div class="admin-metric"><span>Consistency</span><b>${pct(r.consistency)}</b></div>
       <div class="admin-metric"><span>College</span><b>${pct(r.college_attendance_pct)}</b></div>
-      <div class="admin-metric"><span>German</span><b>${pct(r.german_attendance_pct)}</b></div>
-      <div class="admin-metric"><span>Study · 28d</span><b>${fmt(r.study_hours_28d)}h</b></div>
+      <div class="admin-metric"><span>German course</span><b>${pct(r.german_attendance_pct)}</b></div>
+      <div class="admin-metric"><span>German study · 28d</span><b>${fmt(r.german_study_hours_28d)}h</b></div>
+      <div class="admin-metric"><span>BIS Study · 28d</span><b>${fmt(r.study_hours_28d)}h</b></div>
       <div class="admin-metric"><span>Training · 28d</span><b>${fmt(r.training_hours_28d)}h</b></div>
       <div class="admin-metric"><span>Progress</span><b>${pct(r.progress)}</b></div>
       <div class="admin-metric"><span>Confidence</span><b>${pct(r.confidence)}</b></div>
@@ -675,11 +680,11 @@ function assistantContext(){
     selectedDay:dayName(activeDate),
     scores,
     thisWeek:wc,
-    last28Days:{studyHours:totalActual(ds,'Study'),trainingHours:totalActual(ds,'Training')},
+    last28Days:{studyHours:totalActual(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalActual(ds,'Training')},
     selectedDateAttendance:attendance,
     recentStudy,
     recentTraining,
-    note:'Diary/Entries text and session notes are intentionally excluded from automatic AI context.'
+    german:{starts:GERMAN_START,courseHoursPerWeek:GERMAN_COURSE_WEEKLY_HOURS,studyHoursPerWeek:GERMAN_STUDY_WEEKLY_TARGET},note:'Diary/Entries text and session notes are intentionally excluded from automatic AI context.'
   };
 }
 function renderAssistant(){
@@ -832,15 +837,25 @@ function sd(xs){if(xs.length<2)return 0;const m=avg(xs);return Math.sqrt(xs.redu
 function fmt(x,d=1){return Number.isFinite(Number(x))?Number(x).toFixed(d).replace(/\.0$/,''):'0'}
 function uid(prefix='x'){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function escapeHtml(s=''){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
+function germanActive(date){return String(date)>=GERMAN_START}
 function target(date,pillar){
   const override=data.days[date]?.overrides?.[pillar];
   if(override!==undefined&&override!==null&&override!=='')return Number(override)||0;
+  if(pillar==='German'&&!germanActive(date))return 0;
   return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0);
 }
 function sessionHours(date,pillar){return data.sessions[pillar].filter(x=>x.date===date).reduce((s,x)=>s+Number(x.hours||0),0)}
+function germanStudyHours(date){
+  if(!germanActive(date))return 0;
+  return data.sessions.German
+    .filter(x=>x.date===date&&String(x.type||'').toLowerCase()!=='course')
+    .reduce((s,x)=>s+Number(x.hours||0),0);
+}
+function totalGermanStudyHours(dates){return dates.reduce((s,d)=>s+germanStudyHours(d),0)}
 function totalHours(dates,pillar){return dates.reduce((s,d)=>s+sessionHours(d,pillar),0)}
 function scheduledAttendance(date,pillar=null){
-  const items=attendanceSchedule[dayName(date)]||[];
+  let items=attendanceSchedule[dayName(date)]||[];
+  if(!germanActive(date))items=items.filter(x=>x.pillar!=='German');
   return pillar?items.filter(x=>x.pillar===pillar):items;
 }
 function attendanceStatus(date,id){return data.attendance?.[date]?.[id]||null}
@@ -874,7 +889,32 @@ function recentScore(){const vals=recentWindowScores(14);return vals.length>=4?a
 function progress(){const b=baselineScore(),r=recentScore();if(b===null||r===null||b>=99.5)return null;return clamp((r-b)/(100-b)*100,-100,100)}
 function confidence(){const targetDates=dateRange(iso(),28).filter(hasTarget),logged=targetDates.filter(d=>data.days[d]?.confirmed).length;if(!targetDates.length)return 0;const coverage=logged/targetDates.length,maturity=Math.min(1,Object.values(data.days).filter(x=>x?.confirmed).length/28);return 100*(0.75*coverage+0.25*maturity)}
 function scoreSet(){return {Completion:dailyScore(iso()),Consistency:consistency(),Growth:growth(),Progress:progress(),Confidence:confidence()}}
-function weekCoverage(){const ds=weekDates();const out={};PILLARS.forEach(p=>{const actual=totalActual(ds,p),targetSum=ds.reduce((s,d)=>s+target(d,p),0);out[p]={actual,target:targetSum,pct:targetSum?clamp(actual/targetSum*100,0,100):null}});return out}
+function germanWeekCoverage(ds=weekDates()){
+  const active=ds.some(germanActive);
+  const courseTarget=ds.reduce((s,d)=>s+target(d,'German'),0);
+  const courseActual=ds.reduce((s,d)=>s+attendanceActual(d,'German'),0);
+  const studyTarget=active?GERMAN_STUDY_WEEKLY_TARGET:0;
+  const studyActual=totalGermanStudyHours(ds);
+  const parts=[];
+  if(courseTarget>0)parts.push(clamp(courseActual/courseTarget*100,0,100));
+  if(studyTarget>0)parts.push(clamp(studyActual/studyTarget*100,0,100));
+  return {
+    actual:0,target:0,hasTarget:parts.length>0,
+    pct:parts.length?avg(parts):null,
+    detail:active
+      ? `${fmt(courseActual,0)} / ${fmt(courseTarget,0)} course · ${fmt(studyActual)} / ${fmt(studyTarget)}h study`
+      : 'Starts Oct 12'
+  };
+}
+function weekCoverage(){
+  const ds=weekDates(),out={};
+  PILLARS.forEach(p=>{
+    if(p==='German'){out[p]=germanWeekCoverage(ds);return}
+    const actual=totalActual(ds,p),targetSum=ds.reduce((s,d)=>s+target(d,p),0);
+    out[p]={actual,target:targetSum,hasTarget:targetSum>0,pct:targetSum?clamp(actual/targetSum*100,0,100):null};
+  });
+  return out;
+}
 function daySummary(date){
   const bits=[];
   PILLARS.forEach(p=>{
@@ -885,8 +925,23 @@ function daySummary(date){
   if(notes)bits.push(`${notes} entr${notes===1?'y':'ies'}`);
   return bits;
 }
-function pillarRecentCompletion(pillar){const dates=dateRange(iso(),28).filter(d=>target(d,pillar)>0&&data.days[d]?.confirmed);const vals=dates.map(d=>completionPart(d,pillar)).filter(x=>x!==null);return vals.length>=2?avg(vals):null}
-function addSession(pillar,date,type,hours,note=''){const h=Number(hours);if(!date||!Number.isFinite(h)||h<=0)return false;data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});save();return true}
+function pillarRecentCompletion(pillar){
+  if(pillar==='German'){
+    if(!germanActive(iso()))return null;
+    const x=germanWeekCoverage(weekDates());
+    return x.hasTarget?x.pct:null;
+  }
+  const dates=dateRange(iso(),28).filter(d=>target(d,pillar)>0&&data.days[d]?.confirmed);
+  const vals=dates.map(d=>completionPart(d,pillar)).filter(x=>x!==null);
+  return vals.length>=2?avg(vals):null;
+}
+function addSession(pillar,date,type,hours,note=''){
+  const h=Number(hours);
+  if(!date||!Number.isFinite(h)||h<=0)return false;
+  if(pillar==='German'&&!germanActive(date))return false;
+  data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});
+  save();return true;
+}
 function addDiaryEntry(date,category,text){const t=String(text||'').trim();if(!t)return false;data.diary.push({id:uid('d'),date,category,text:t,createdAt:new Date().toISOString()});save();return true}
 function setView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
@@ -909,12 +964,49 @@ function setView(id){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function scoreCard(label,value,desc){let shown='—';if(value!==null&&value!==undefined){if(label==='Growth')shown=(value>=0?'+':'')+fmt(value,1)+'%';else shown=fmt(value,0)}return `<div class="card score-card ${label.toLowerCase()}"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`}
-function coverageHtml(items){return PILLARS.map(p=>{const x=items[p],pct=x?.pct??0;const units=(p==='College'||p==='German')?`${fmt(x.actual,0)} / ${fmt(x.target,0)} attended`:`${fmt(x.actual)} / ${fmt(x.target)}h`;return `<div class="row ${pillarClass[p]}"><div class="grow"><div class="progress-meta"><b>${p}</b><span class="tiny">${units}</span></div><div class="progress ${pillarClass[p]}"><span style="width:${pct}%"></span></div></div><b>${x.target?Math.round(pct)+'%':'—'}</b></div>`}).join('')}
+function coverageHtml(items){return PILLARS.map(p=>{
+  const x=items[p]||{},pct=x.pct??0;
+  const units=x.detail||(p==='College'||p==='German'
+    ?`${fmt(x.actual,0)} / ${fmt(x.target,0)} attended`
+    :`${fmt(x.actual)} / ${fmt(x.target)}h`);
+  const has=x.hasTarget!==undefined?x.hasTarget:!!x.target;
+  return `<div class="row ${pillarClass[p]}"><div class="grow"><div class="progress-meta"><b>${p}</b><span class="tiny">${units}</span></div><div class="progress ${pillarClass[p]}"><span style="width:${pct}%"></span></div></div><b>${has?Math.round(pct)+'%':'—'}</b></div>`;
+}).join('')}
 function renderHeadline(){const s=scoreSet();document.getElementById('headlineScores').innerHTML=[scoreCard('Completion',s.Completion,'today'),scoreCard('Consistency',s.Consistency,'recent reliability'),scoreCard('Growth',s.Growth,'recent vs prior'),scoreCard('Progress',s.Progress,'from baseline'),scoreCard('Confidence',s.Confidence,'data quality')].join('');document.getElementById('calcHeadline').innerHTML=document.getElementById('headlineScores').innerHTML}
-function renderDashboard(){document.getElementById('weekCoverage').innerHTML=coverageHtml(weekCoverage());const today={};PILLARS.forEach(p=>{const t=target(iso(),p),a=actualValue(iso(),p);today[p]={actual:a,target:t,pct:t?clamp(a/t*100,0,100):null}});document.getElementById('todayCoverage').innerHTML=coverageHtml(today);
-  const recent=[...data.diary].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,5);document.getElementById('recentDiary').innerHTML=recent.length?recent.map(n=>`<div class="row"><div class="grow"><b>${prettyDate(n.date)}</b><div class="tiny">${escapeHtml(n.text.slice(0,90))}${n.text.length>90?'…':''}</div></div></div>`).join(''):'<div class="empty">No entries yet.</div>';
-  const ds=dateRange(iso(),28);document.getElementById('recentTotals').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">last 28 days</div></div><b>${actualDisplay(totalActual(ds,p),p)}</b></div>`).join('')}
-function quickTypeOptions(pillar,date){if(pillar==='Study')return subjects.filter(x=>x!=='Custom');if(pillar==='College'){const dn=dayName(date);if(dn==='Thursday')return ['Section','Lecture','Other'];return ['Lecture','Section','Other']}return types[pillar]}
+function renderDashboard(){
+  document.getElementById('weekCoverage').innerHTML=coverageHtml(weekCoverage());
+  const today={};
+  PILLARS.forEach(p=>{
+    if(p==='German'){
+      const t=target(iso(),'German'),a=attendanceActual(iso(),'German'),study=germanStudyHours(iso());
+      today[p]={
+        actual:a,target:t,hasTarget:t>0,pct:t?clamp(a/t*100,0,100):null,
+        detail:germanActive(iso())
+          ? `${fmt(a,0)} / ${fmt(t,0)} course · ${fmt(study)}h German study today`
+          : 'Starts Oct 12'
+      };
+      return;
+    }
+    const t=target(iso(),p),a=actualValue(iso(),p);
+    today[p]={actual:a,target:t,hasTarget:t>0,pct:t?clamp(a/t*100,0,100):null};
+  });
+  document.getElementById('todayCoverage').innerHTML=coverageHtml(today);
+  const recent=[...data.diary].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,5);
+  document.getElementById('recentDiary').innerHTML=recent.length?recent.map(n=>`<div class="row"><div class="grow"><b>${prettyDate(n.date)}</b><div class="tiny">${escapeHtml(n.text.slice(0,90))}${n.text.length>90?'…':''}</div></div></div>`).join(''):'<div class="empty">No entries yet.</div>';
+  const ds=dateRange(iso(),28);
+  document.getElementById('recentTotals').innerHTML=PILLARS.map(p=>{
+    const shown=p==='German'
+      ? `${fmt(totalActual(ds,'German'),0)} attended · ${fmt(totalGermanStudyHours(ds))}h study`
+      : actualDisplay(totalActual(ds,p),p);
+    return `<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">last 28 days</div></div><b>${shown}</b></div>`;
+  }).join('');
+}
+function quickTypeOptions(pillar,date){
+  if(pillar==='Study')return subjects.filter(x=>x!=='Custom');
+  if(pillar==='German')return ['Self-study','Practice','Other'];
+  if(pillar==='College'){const dn=dayName(date);if(dn==='Thursday')return ['Section','Lecture','Other'];return ['Lecture','Section','Other']}
+  return types[pillar];
+}
 function renderToday(){
   document.getElementById('activeDate').value=activeDate;
   document.getElementById('activeDayName').value=dayName(activeDate);
@@ -925,9 +1017,15 @@ function renderToday(){
   document.querySelectorAll('[data-date-jump]').forEach(b=>b.onclick=()=>{activeDate=b.dataset.dateJump;renderToday()});
 
   document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{
+    if(p==='German'){
+      if(!germanActive(activeDate))return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>Starts Oct 12</b><div class="tiny">5h course + 4h study per week from Oct 12</div></div>`;
+      const att=attendanceActual(activeDate,'German'),attTarget=target(activeDate,'German'),study=germanStudyHours(activeDate);
+      const ref=attTarget?`${fmt(att,0)} / ${fmt(attTarget,0)} course attendance · weekly study target 4h`:`German study ${fmt(study)}h today · weekly target 4h`;
+      return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${fmt(att,0)} attended · ${fmt(study)}h study</b><div class="tiny">${ref}</div></div>`;
+    }
     const t=target(activeDate,p),a=actualValue(activeDate,p),pct=t?clamp(a/t*100,0,100):null;
-    const shown=(p==='College'||p==='German')?`${fmt(a,0)} attended`:`${fmt(a)}h`;
-    const ref=t?((p==='College'||p==='German')?`reference ${fmt(t,0)} attendance · ${Math.round(pct)}%`:`reference ${fmt(t)}h · ${Math.round(pct)}%`):'no reference target';
+    const shown=p==='College'?`${fmt(a,0)} attended`:`${fmt(a)}h`;
+    const ref=t?(p==='College'?`reference ${fmt(t,0)} attendance · ${Math.round(pct)}%`:`reference ${fmt(t)}h · ${Math.round(pct)}%`):'no reference target';
     return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${shown}</b><div class="tiny">${ref}</div></div>`;
   }).join('');
 
@@ -945,7 +1043,7 @@ function renderToday(){
       </div>
       <div class="attendance-status ${status||'unlogged'}">${statusText}</div>
     </div>`;
-  }).join(''):'<div class="empty">No College or German attendance scheduled on this date.</div>';
+  }).join(''):`<div class="empty">${!germanActive(activeDate)&&['Monday','Thursday'].includes(dayName(activeDate))?'German starts Oct 12. No German attendance is expected yet.':'No College or German attendance scheduled on this date.'}</div>`;
 
   document.querySelectorAll('[data-attendance]').forEach(b=>b.onclick=()=>{
     const [id,status]=b.dataset.attendance.split('|');
@@ -953,8 +1051,11 @@ function renderToday(){
     renderAll();
   });
 
-  const hourlyPillars=['Study','Training'];
-  document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>`<div class="quick-card ${pillarClass[p]}"><h4>${p}</h4><div class="tiny">${target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target on this date — logging still allowed'}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`).join('');
+  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
+  document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
+    const sub=p==='German'?'Flexible weekly target 4h · starts from Oct 12':(target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target on this date — logging still allowed');
+    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`;
+  }).join('');
 
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
     const [p,h]=b.dataset.quickHours.split('|');
@@ -969,14 +1070,18 @@ function renderToday(){
     }
   });
 
-  const sessions=['Study','Training'].flatMap(p=>data.sessions[p].filter(x=>x.date===activeDate).map(x=>({...x,pillar:p})))
+  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
+  const sessions=editablePillars.flatMap(p=>data.sessions[p]
+    .filter(x=>x.date===activeDate&&(p!=='German'||String(x.type||'').toLowerCase()!=='course'))
+    .map(x=>({...x,pillar:p})))
     .sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
+
   document.getElementById('selectedDateSessions').innerHTML=sessions.length?sessions.map(x=>{
     const opts=[...quickTypeOptions(x.pillar,x.date)];
     if(!opts.includes(x.type))opts.unshift(x.type);
     return `<div class="session-edit-card ${pillarClass[x.pillar]}" data-session-card="${x.pillar}|${x.id}">
       <div class="session-edit-head">
-        <div><b>${x.pillar} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
+        <div><b>${x.pillar==='German'?'German study':x.pillar} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
         <span class="badge">${fmt(x.hours)}h</span>
       </div>
       <details>
@@ -993,7 +1098,7 @@ function renderToday(){
         </div>
       </details>
     </div>`;
-  }).join(''):'<div class="empty">No Study or Training hours logged on this date.</div>';
+  }).join(''):'<div class="empty">No Study, German study, or Training hours logged on this date.</div>';
 
   document.querySelectorAll('[data-save-session]').forEach(b=>b.onclick=()=>{
     const [p,id]=b.dataset.saveSession.split('|');
@@ -1001,8 +1106,10 @@ function renderToday(){
     const item=data.sessions[p].find(x=>x.id===id);
     if(!item)return;
     const newHours=Number(card.querySelector('[data-edit-hours]').value);
+    const newDate=card.querySelector('[data-edit-date]').value||item.date;
     if(!Number.isFinite(newHours)||newHours<=0)return;
-    item.date=card.querySelector('[data-edit-date]').value||item.date;
+    if(p==='German'&&!germanActive(newDate))return;
+    item.date=newDate;
     item.type=card.querySelector('[data-edit-type]').value||item.type;
     item.hours=newHours;
     item.note=card.querySelector('[data-edit-note]').value.trim();
@@ -1093,11 +1200,31 @@ function renderTrackingPages(){
   document.getElementById('studyPage').innerHTML=sessionPageHtml('Study');
   bindSessionControls();
 }
-function renderCalculations(){document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());const recent=recentScore(),base=baselineScore(),scores=recentWindowScores(28);document.getElementById('trendDiagnostics').innerHTML=`<div class="row"><div class="grow">Recent performance</div><b>${recent===null?'—':fmt(recent,1)}</b></div><div class="row"><div class="grow">Starting baseline</div><b>${base===null?'—':fmt(base,1)}</b></div><div class="row"><div class="grow">28-day volatility</div><b>${scores.length<5?'—':fmt(sd(scores),1)}</b></div><div class="row"><div class="grow">Momentum</div><b>${growth()===null?'—':growth()>3?'↑ Positive':growth()<-3?'↓ Negative':'→ Stable'}</b></div>`;
-  const td=dateRange(iso(),28).filter(hasTarget),logged=td.filter(d=>data.days[d]?.confirmed).length;document.getElementById('dataStatus').innerHTML=`<div class="row"><div class="grow">Reference days in window</div><b>${td.length}</b></div><div class="row"><div class="grow">Confirmed days</div><b>${logged}</b></div><div class="row"><div class="grow">Missing days</div><b>${td.length-logged}</b></div><div class="row"><div class="grow">Rule</div><b>Missing ≠ zero</b></div>`;
-  document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow">${p}<div class="tiny">28-day confirmed-target average</div></div><b>${pillarRecentCompletion(p)===null?'—':fmt(pillarRecentCompletion(p),0)}</b></div>`).join('');
-  const glossary=[['Completion','How much of today’s applicable College attendance, Study hours, German attendance, and Training hours you completed.'],['Consistency','How strong and stable your completion has been across recent confirmed reference days.'],['Growth','Whether recent performance is higher or lower than the previous comparable period.'],['Progress','How much distance you have closed from your starting baseline toward the reference.'],['Confidence','How complete and mature the data is behind the other calculations.'],['Diagnostics','Attendance coverage for College/German plus hourly coverage for Study/Training, with recent form, volatility and momentum.']];document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('')}
-function renderReference(){document.getElementById('referenceGrid').innerHTML=Object.entries(reference).map(([d,r])=>`<div class="day"><h4>${d}</h4><div class="tiny">College ${r.college} attendance · Study ${r.study}h · German ${r.german} attendance · Training ${r.training}h</div>${r.events.map(e=>`<div class="event ${e[2]}"><b>${e[0]}</b><div>${e[1]}</div></div>`).join('')}</div>`).join('')}
+function renderCalculations(){
+  document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());
+  const recent=recentScore(),base=baselineScore(),scores=recentWindowScores(28);
+  document.getElementById('trendDiagnostics').innerHTML=`<div class="row"><div class="grow">Recent performance</div><b>${recent===null?'—':fmt(recent,1)}</b></div><div class="row"><div class="grow">Starting baseline</div><b>${base===null?'—':fmt(base,1)}</b></div><div class="row"><div class="grow">28-day volatility</div><b>${scores.length<5?'—':fmt(sd(scores),1)}</b></div><div class="row"><div class="grow">Momentum</div><b>${growth()===null?'—':growth()>3?'↑ Positive':growth()<-3?'↓ Negative':'→ Stable'}</b></div>`;
+  const td=dateRange(iso(),28).filter(hasTarget),logged=td.filter(d=>data.days[d]?.confirmed).length;
+  document.getElementById('dataStatus').innerHTML=`<div class="row"><div class="grow">Reference days in window</div><b>${td.length}</b></div><div class="row"><div class="grow">Confirmed days</div><b>${logged}</b></div><div class="row"><div class="grow">Missing days</div><b>${td.length-logged}</b></div><div class="row"><div class="grow">German starts</div><b>Oct 12</b></div><div class="row"><div class="grow">German weekly load</div><b>5h course + 4h study</b></div><div class="row"><div class="grow">Rule</div><b>Missing ≠ zero</b></div>`;
+  document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>{
+    const label=p==='German'?'current week · course attendance + 4h study':'28-day confirmed-target average';
+    return `<div class="row ${pillarClass[p]}"><div class="grow">${p}<div class="tiny">${label}</div></div><b>${pillarRecentCompletion(p)===null?'—':fmt(pillarRecentCompletion(p),0)}</b></div>`;
+  }).join('');
+  const glossary=[
+    ['Completion','How much of today’s applicable College attendance, BIS Study hours, German course attendance, and Training hours you completed.'],
+    ['Consistency','How strong and stable your completion has been across recent confirmed reference days.'],
+    ['Growth','Whether recent performance is higher or lower than the previous comparable period.'],
+    ['Progress','How much distance you have closed from your starting baseline toward the reference.'],
+    ['Confidence','How complete and mature the data is behind the other calculations.'],
+    ['German','Starts Oct 12. Course = attendance across 5h/week. German self-study = flexible 4h/week. Weekly German coverage combines both.']
+  ];
+  document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('');
+}
+function renderReference(){
+  document.getElementById('referenceGrid').innerHTML=
+    `<div class="day german"><h4>German</h4><div class="tiny">Starts Oct 12 · 5h course/week + 4h flexible self-study/week</div><div class="event german"><b>Course</b><div>Monday + Thursday · 2.5h each · tracked by attendance</div></div><div class="event german"><b>Self-study</b><div>4h/week · flexible days · tracked in hours</div></div></div>`+
+    Object.entries(reference).map(([d,r])=>`<div class="day"><h4>${d}</h4><div class="tiny">College ${r.college} attendance · Study ${r.study}h · German course ${r.german} attendance · Training ${r.training}h</div>${r.events.map(e=>`<div class="event ${e[2]}"><b>${e[0]}</b><div>${e[1]}</div></div>`).join('')}</div>`).join('');
+}
 function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderEntries();renderTrackingPages();renderCalculations();renderReference();renderAssistant()}
 
 // Navigation
