@@ -42,6 +42,13 @@ export default async function handler(req, res) {
     const message = String(req.body?.message || '').trim().slice(0, 2500);
     if (!message) return res.status(400).json({ error: 'Write a message first.' });
 
+    const history = Array.isArray(req.body?.history)
+      ? req.body.history.slice(-8).map((m) => ({
+          role: m?.role === 'assistant' ? 'assistant' : 'user',
+          content: String(m?.content || '').slice(0, 1800)
+        })).filter((m) => m.content)
+      : [];
+
     const isOwner = await supabaseCall('/rest/v1/rpc/is_site_owner', token, {});
     const allowed = await supabaseCall('/rest/v1/rpc/consume_ai_request', token, { p_limit: 20 });
     if (!allowed) return res.status(429).json({ error: 'Daily assistant limit reached. The site owner has unlimited app access.' });
@@ -72,6 +79,7 @@ export default async function handler(req, res) {
         messages: [
           { role: 'system', content: system },
           { role: 'system', content: 'Current tracker context (JSON): ' + context },
+          ...history,
           { role: 'user', content: message }
         ],
         max_tokens: 700
