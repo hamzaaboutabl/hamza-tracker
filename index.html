@@ -262,6 +262,42 @@ body{
 .attendance-status.present{color:var(--training)}.attendance-status.absent{color:var(--danger)}.attendance-status.unlogged{color:var(--muted)}
 @media(max-width:900px){.attendance-grid{grid-template-columns:1fr}.attendance-actions{grid-template-columns:1fr 1fr auto}}
 
+
+/* v11: embedded assistant + owner analytics */
+.owner-only[hidden]{display:none!important}
+.owner-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--german) 55%,var(--line));background:color-mix(in srgb,var(--german) 12%,var(--panel));color:#ffe4a3;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900}
+.assistant-shell{display:grid;grid-template-rows:minmax(320px,58vh) auto;gap:10px}
+.assistant-chat{overflow:auto;border:1px solid var(--line);border-radius:16px;background:var(--panel2);padding:12px;display:grid;align-content:start;gap:10px}
+.chat-msg{max-width:min(760px,88%);border:1px solid var(--line);border-radius:14px;padding:10px 12px;white-space:pre-wrap;line-height:1.5}
+.chat-msg.user{justify-self:end;background:#18283a;border-color:#2b4664}
+.chat-msg.assistant{justify-self:start;background:#111c28}
+.chat-msg.pending{color:var(--muted);font-style:italic}
+.assistant-compose{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.assistant-compose textarea{min-height:54px;max-height:150px}
+.assistant-compose .btn{min-width:86px}
+.assistant-prompts{display:flex;gap:6px;overflow:auto;margin-bottom:8px;scrollbar-width:none}
+.assistant-prompts::-webkit-scrollbar{display:none}
+.assistant-prompts button{flex:0 0 auto}
+.admin-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.admin-users{display:grid;gap:9px}
+.admin-user{border:1px solid var(--line);background:var(--panel2);border-radius:13px;padding:11px}
+.admin-user-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
+.admin-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.admin-metric{border:1px solid var(--line);border-radius:10px;padding:8px;background:#0b131d}
+.admin-metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.admin-metric b{display:block;margin-top:2px}
+@media(max-width:900px){
+  .assistant-shell{grid-template-rows:minmax(300px,55vh) auto}
+  .chat-msg{max-width:92%}
+  .admin-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+  .assistant-compose{grid-template-columns:1fr}
+  .assistant-compose .btn{width:100%}
+  .admin-summary{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -287,7 +323,9 @@ body{
   <div class="nav-group"><div class="nav-label">Core</div><div class="nav">
     <button data-v="study"><span class="dot study"></span>Study</button>
     <button data-v="calculations"><span class="dot training"></span>Performance</button>
+    <button data-v="assistant"><span class="dot"></span>Assistant</button>
     <button data-v="diary"><span class="dot"></span>Entries</button>
+    <button data-v="admin" id="adminNavBtn" class="owner-only" hidden><span class="dot german"></span>Admin</button>
   </div></div>
 
   <div class="nav-group"><div class="nav-label">System</div><div class="nav">
@@ -311,6 +349,7 @@ body{
   <div class="pillar-shortcuts">
     <button class="pillar-shortcut study" data-jump="study"><span>Study</span><span class="arrow">→</span></button>
     <button class="pillar-shortcut performance-shortcut" data-jump="calculations"><span>Performance</span><span class="arrow">→</span></button>
+    <button class="pillar-shortcut" data-jump="assistant" style="--pillar:#63d8e8"><span>Assistant</span><span class="arrow">→</span></button>
     <button class="pillar-shortcut entry-shortcut" data-jump="diary"><span>Entries</span><span class="arrow">→</span></button>
   </div>
 
@@ -377,6 +416,36 @@ body{
   <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>What the system calculates</h3><p>Five headline metrics; everything else is diagnostic.</p></div></div><div class="grid g3" id="calculationGlossary"></div></div>
 </section>
 
+<section class="view" id="assistant">
+  <div class="card">
+    <div class="section-head"><div><h3>Tracker Assistant</h3><p>Chat with your own performance data. Diary text is not sent automatically.</p></div><span class="tiny" id="assistantLimitText"></span></div>
+    <div class="assistant-prompts">
+      <button class="btn small" data-ai-prompt="How am I doing this week?">This week</button>
+      <button class="btn small" data-ai-prompt="What am I neglecting most right now?">Weakest area</button>
+      <button class="btn small" data-ai-prompt="Compare my current performance with my recent baseline.">Compare</button>
+      <button class="btn small" data-ai-prompt="What should I focus on next?">Next focus</button>
+    </div>
+    <div class="assistant-shell">
+      <div class="assistant-chat" id="assistantChat"></div>
+      <div class="assistant-compose">
+        <textarea id="assistantInput" placeholder="Ask about your tracker..."></textarea>
+        <button class="btn primary" id="assistantSend">Send</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="admin">
+  <div class="card">
+    <div class="section-head"><div><h3>Owner dashboard</h3><p>Privacy-safe performance and site telemetry only. No diary text, notes, email addresses, or raw activity logs.</p></div><span class="owner-badge">Site owner</span></div>
+    <div class="admin-summary" id="adminSummary"></div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="section-head"><div><h3>Users</h3><p>Pseudonymous user key + aggregate performance only.</p></div><button class="btn small" id="refreshAdmin">Refresh</button></div>
+    <div class="admin-users" id="adminUsers"></div>
+  </div>
+</section>
+
 <section class="view" id="diary">
   <div class="grid g2">
     <div class="card">
@@ -405,7 +474,7 @@ body{
   </div>
 
   <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Account</h3><p>Cloud sync is tied to your Google sign-in.</p></div></div><div class="system-account"><span class="tiny" id="systemAccount">Checking…</span><button class="btn small" id="systemLogoutBtn">Sign out</button></div></div>
+    <div class="card"><div class="section-head"><div><h3>Account</h3><p>Cloud sync is tied to your Google sign-in.</p></div><span class="owner-badge owner-only" id="ownerBadge" hidden>Owner · Author</span></div><div class="system-account"><span class="tiny" id="systemAccount">Checking…</span><div style="display:flex;gap:7px"><button class="btn small owner-only" id="openAdminBtn" data-jump="admin" hidden>Admin</button><button class="btn small" id="systemLogoutBtn">Sign out</button></div></div></div>
     <div class="card"><div class="section-head"><div><h3>Backup</h3><p>Stored locally, with automatic cloud sync when signed in.</p></div></div><button class="btn" id="exportBtn">Export JSON</button> <label class="btn" for="importFile">Import JSON</label><input id="importFile" type="file" accept="application/json" hidden></div>
   </div>
   <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div>
@@ -418,7 +487,7 @@ body{
   <button data-v="today">Today</button>
   <button data-v="study">Study</button>
   <button data-v="calculations">Performance</button>
-  <button data-v="diary">Entries</button>
+  <button data-v="assistant">AI</button>
 </nav>
 
 <script>
@@ -470,6 +539,9 @@ let data=loadData();
 let activeDate=iso();
 let cloudUser=null;
 let syncTimer=null;
+let telemetryTimer=null;
+let isOwner=false;
+let assistantMessages=[];
 
 function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[]},attendance:{},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
 function normalize(d){
@@ -500,8 +572,149 @@ function save(sync=true){
   data.settings={...(data.settings||{}),lastModified:new Date().toISOString()};
   localStorage.setItem(KEY,JSON.stringify(data));
   if(sync)queueCloudSync();
+  queueTelemetry();
 }
 function setSyncState(msg,bad=false){const el=document.getElementById('syncState');if(!el)return;el.textContent=msg;el.style.color=bad?'var(--danger)':'var(--muted)'}
+function updateOwnerUI(){
+  document.querySelectorAll('.owner-only').forEach(el=>el.hidden=!isOwner);
+  const badge=document.getElementById('ownerBadge');
+  if(badge)badge.hidden=!isOwner;
+  const limit=document.getElementById('assistantLimitText');
+  if(limit)limit.textContent=isOwner?'Owner · unlimited app requests':'20 assistant requests/day';
+}
+async function loadOwnerRole(){
+  if(!cloudUser){isOwner=false;updateOwnerUI();return}
+  const {data:owner,error}=await cloud.rpc('is_site_owner');
+  isOwner=!error&&owner===true;
+  updateOwnerUI();
+  if(isOwner)loadAdmin();
+}
+function telemetryPayload(){
+  const ds=dateRange(iso(),28);
+  const scores=scoreSet();
+  const confirmed=ds.filter(d=>data.days[d]?.confirmed).length;
+  const attendancePct=p=>{
+    const expected=ds.reduce((s,d)=>s+target(d,p),0);
+    const attended=ds.reduce((s,d)=>s+actualValue(d,p),0);
+    return expected?clamp(attended/expected*100,0,100):null;
+  };
+  return {
+    user_id:cloudUser?.id,
+    updated_at:new Date().toISOString(),
+    confirmed_days_28d:confirmed,
+    completion:scores.Completion,
+    consistency:scores.Consistency,
+    growth:scores.Growth,
+    progress:scores.Progress,
+    confidence:scores.Confidence,
+    college_attendance_pct:attendancePct('College'),
+    study_hours_28d:totalActual(ds,'Study'),
+    german_attendance_pct:attendancePct('German'),
+    training_hours_28d:totalActual(ds,'Training')
+  };
+}
+function queueTelemetry(){
+  if(!cloudUser)return;
+  clearTimeout(telemetryTimer);
+  telemetryTimer=setTimeout(syncTelemetry,900);
+}
+async function syncTelemetry(){
+  if(!cloudUser)return;
+  const payload=telemetryPayload();
+  const {error}=await cloud.from('performance_telemetry').upsert(payload,{onConflict:'user_id'});
+  if(!error&&isOwner&&document.getElementById('admin')?.classList.contains('active'))loadAdmin();
+}
+function pct(v){
+  return v===null||v===undefined||!Number.isFinite(Number(v))?'—':Math.round(Number(v))+'%';
+}
+async function loadAdmin(){
+  if(!isOwner)return;
+  const box=document.getElementById('adminUsers'),summary=document.getElementById('adminSummary');
+  if(box)box.innerHTML='<div class="empty">Loading…</div>';
+  const {data:rows,error}=await cloud.from('performance_telemetry')
+    .select('user_key,updated_at,confirmed_days_28d,completion,consistency,growth,progress,confidence,college_attendance_pct,study_hours_28d,german_attendance_pct,training_hours_28d')
+    .order('updated_at',{ascending:false});
+  if(error){if(box)box.innerHTML='<div class="empty">Could not load analytics.</div>';return}
+  const now=Date.now(),week=7*86400000;
+  const active7=(rows||[]).filter(r=>now-Date.parse(r.updated_at)<=week).length;
+  const completions=(rows||[]).map(r=>Number(r.completion)).filter(Number.isFinite);
+  const avgCompletion=completions.length?avg(completions):null;
+  if(summary)summary.innerHTML=[
+    ['Tracked users',(rows||[]).length],
+    ['Active · 7d',active7],
+    ['Avg completion',avgCompletion===null?'—':Math.round(avgCompletion)+'%']
+  ].map(([a,b])=>`<div class="admin-metric"><span>${a}</span><b>${b}</b></div>`).join('');
+  if(box)box.innerHTML=(rows||[]).length?(rows||[]).map(r=>`<div class="admin-user">
+    <div class="admin-user-head"><div><b>User ${escapeHtml(r.user_key||'—')}</b><div class="tiny">Last active ${new Date(r.updated_at).toLocaleString()}</div></div><span class="badge">${r.confirmed_days_28d||0} confirmed days</span></div>
+    <div class="admin-metrics">
+      <div class="admin-metric"><span>Completion</span><b>${pct(r.completion)}</b></div>
+      <div class="admin-metric"><span>Consistency</span><b>${pct(r.consistency)}</b></div>
+      <div class="admin-metric"><span>College</span><b>${pct(r.college_attendance_pct)}</b></div>
+      <div class="admin-metric"><span>German</span><b>${pct(r.german_attendance_pct)}</b></div>
+      <div class="admin-metric"><span>Study · 28d</span><b>${fmt(r.study_hours_28d)}h</b></div>
+      <div class="admin-metric"><span>Training · 28d</span><b>${fmt(r.training_hours_28d)}h</b></div>
+      <div class="admin-metric"><span>Progress</span><b>${pct(r.progress)}</b></div>
+      <div class="admin-metric"><span>Confidence</span><b>${pct(r.confidence)}</b></div>
+    </div>
+  </div>`).join(''):'<div class="empty">No telemetry yet.</div>';
+}
+function assistantContext(){
+  const wc=weekCoverage(),scores=scoreSet(),ds=dateRange(iso(),28);
+  const attendance=scheduledAttendance(activeDate).map(x=>({pillar:x.pillar,label:x.label,kind:x.kind,status:attendanceStatus(activeDate,x.id)||'unlogged'}));
+  const recentStudy=[...(data.sessions.Study||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12).map(x=>({date:x.date,subject:x.type,hours:x.hours}));
+  const recentTraining=[...(data.sessions.Training||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(x=>({date:x.date,type:x.type,hours:x.hours}));
+  return {
+    selectedDate:activeDate,
+    selectedDay:dayName(activeDate),
+    scores,
+    thisWeek:wc,
+    last28Days:{studyHours:totalActual(ds,'Study'),trainingHours:totalActual(ds,'Training')},
+    selectedDateAttendance:attendance,
+    recentStudy,
+    recentTraining,
+    note:'Diary/Entries text and session notes are intentionally excluded from automatic AI context.'
+  };
+}
+function renderAssistant(){
+  const chat=document.getElementById('assistantChat');
+  if(!chat)return;
+  chat.innerHTML=assistantMessages.length?assistantMessages.map(m=>`<div class="chat-msg ${m.role==='user'?'user':'assistant'}">${escapeHtml(m.content)}</div>`).join(''):'<div class="empty">Ask about your week, consistency, attendance, study, training, or what to focus on next.</div>';
+  chat.scrollTop=chat.scrollHeight;
+}
+async function askAssistant(text){
+  const message=String(text||'').trim();
+  if(!message)return;
+  const input=document.getElementById('assistantInput'),send=document.getElementById('assistantSend');
+  const prior=assistantMessages.slice(-8);
+  assistantMessages.push({role:'user',content:message});
+  renderAssistant();
+  if(input)input.value='';
+  if(send)send.disabled=true;
+  const chat=document.getElementById('assistantChat');
+  const pending=document.createElement('div');
+  pending.className='chat-msg assistant pending';
+  pending.textContent='Thinking…';
+  chat.appendChild(pending);chat.scrollTop=chat.scrollHeight;
+  try{
+    const {data:{session}}=await cloud.auth.getSession();
+    if(!session?.access_token)throw new Error('Sign in again.');
+    const r=await fetch('/api/assistant',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({message,history:prior,context:assistantContext()})
+    });
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(out.error||'Assistant request failed.');
+    assistantMessages.push({role:'assistant',content:out.reply});
+  }catch(e){
+    assistantMessages.push({role:'assistant',content:'Error: '+(e?.message||'Assistant unavailable.')});
+  }finally{
+    pending.remove();
+    if(send)send.disabled=false;
+    renderAssistant();
+  }
+}
+
 function renderAuthState(){
   const state=document.getElementById('authState'),
         login=document.getElementById('loginBtn'),
@@ -519,6 +732,8 @@ function renderAuthState(){
     if(gateBtn)gateBtn.hidden=true;
     if(systemAccount)systemAccount.textContent=cloudUser.email||'Signed in';
   }else{
+    isOwner=false;
+    updateOwnerUI();
     if(state)state.textContent='Signed out';
     if(login)login.hidden=false;
     if(logout)logout.hidden=true;
@@ -567,11 +782,12 @@ async function initCloud(){
   const {data:{session}}=await cloud.auth.getSession();
   cloudUser=session?.user||null;
   renderAuthState();
-  if(cloudUser)await pullCloud();
+  if(cloudUser){await pullCloud();await loadOwnerRole();queueTelemetry();}
   cloud.auth.onAuthStateChange(async(_event,session)=>{
     cloudUser=session?.user||null;
     renderAuthState();
-    if(cloudUser)await pullCloud();
+    if(cloudUser){await pullCloud();await loadOwnerRole();queueTelemetry();}
+    else{isOwner=false;updateOwnerUI();}
   });
 }
 async function signInGoogle(){
@@ -665,11 +881,16 @@ function setView(id){
     today:['Today','Fast logging and confirmation.'],
     study:['Study','BIS study sessions by subject.'],
     calculations:['Performance','Attendance, hours, trends and calculations.'],
+    assistant:['Assistant','Chat with your tracker data.'],
+    admin:['Admin','Privacy-safe site and performance analytics.'],
     diary:['Entries','An archive, not a daily obligation.'],
     reference:['System','Reference schedule, backup and reset.']
   };
+  if(id==='admin'&&!isOwner){id='dashboard';document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));}
   document.getElementById('title').textContent=titles[id][0];
   document.getElementById('subtitle').textContent=titles[id][1];
+  if(id==='assistant')renderAssistant();
+  if(id==='admin'&&isOwner)loadAdmin();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function scoreCard(label,value,desc){let shown='—';if(value!==null&&value!==undefined){if(label==='Growth')shown=(value>=0?'+':'')+fmt(value,1)+'%';else shown=fmt(value,0)}return `<div class="card score-card ${label.toLowerCase()}"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`}
@@ -862,7 +1083,7 @@ function renderCalculations(){document.getElementById('calcCoverage').innerHTML=
   document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow">${p}<div class="tiny">28-day confirmed-target average</div></div><b>${pillarRecentCompletion(p)===null?'—':fmt(pillarRecentCompletion(p),0)}</b></div>`).join('');
   const glossary=[['Completion','How much of today’s applicable College attendance, Study hours, German attendance, and Training hours you completed.'],['Consistency','How strong and stable your completion has been across recent confirmed reference days.'],['Growth','Whether recent performance is higher or lower than the previous comparable period.'],['Progress','How much distance you have closed from your starting baseline toward the reference.'],['Confidence','How complete and mature the data is behind the other calculations.'],['Diagnostics','Attendance coverage for College/German plus hourly coverage for Study/Training, with recent form, volatility and momentum.']];document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('')}
 function renderReference(){document.getElementById('referenceGrid').innerHTML=Object.entries(reference).map(([d,r])=>`<div class="day"><h4>${d}</h4><div class="tiny">College ${r.college} attendance · Study ${r.study}h · German ${r.german} attendance · Training ${r.training}h</div>${r.events.map(e=>`<div class="event ${e[2]}"><b>${e[0]}</b><div>${e[1]}</div></div>`).join('')}</div>`).join('')}
-function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderEntries();renderTrackingPages();renderCalculations();renderReference()}
+function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderEntries();renderTrackingPages();renderCalculations();renderReference();renderAssistant()}
 
 // Navigation
 [...document.querySelectorAll('.nav button,.mobile-dock button')].forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));[...document.querySelectorAll('[data-jump]')].forEach(b=>b.addEventListener('click',()=>setView(b.dataset.jump)));
@@ -893,6 +1114,14 @@ document.getElementById('addDiary').addEventListener('click',()=>{
 });
 document.getElementById('diarySearch').addEventListener('input',renderEntries);
 
+// Assistant + owner analytics
+document.getElementById('assistantSend').addEventListener('click',()=>askAssistant(document.getElementById('assistantInput').value));
+document.getElementById('assistantInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();askAssistant(e.currentTarget.value)}
+});
+document.querySelectorAll('[data-ai-prompt]').forEach(b=>b.addEventListener('click',()=>askAssistant(b.dataset.aiPrompt)));
+document.getElementById('refreshAdmin').addEventListener('click',()=>loadAdmin());
+
 // Backup
  document.getElementById('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hamza-performance-tracker-${iso()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500)});
 document.getElementById('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{data=normalize(JSON.parse(await f.text()));save();renderAll();alert('Imported successfully.')}catch(err){alert('Invalid backup file.')}e.target.value=''});
@@ -902,6 +1131,7 @@ document.getElementById('loginBtn').addEventListener('click',signInGoogle);
 document.getElementById('gateLoginBtn').addEventListener('click',signInGoogle);
 document.getElementById('logoutBtn').addEventListener('click',()=>cloud.auth.signOut());
 document.getElementById('systemLogoutBtn').addEventListener('click',()=>cloud.auth.signOut());
+updateOwnerUI();
 initCloud();
 try{renderAll()}catch(err){
   const gs=document.getElementById('gateStatus');
