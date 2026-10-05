@@ -6,7 +6,7 @@ const MODEL = 'gemini-3.8-flash';
 const PILLARS = ['College','Study','German','Training'];
 const GERMAN_START = '2026-10-12';
 const GERMAN_COURSE_WEEKLY_HOURS = 5;
-const GERMAN_STUDY_WEEKLY_TARGET = 4;
+const GERMAN_STUDY_WEEKLY_HOURS = 4;
 
 const ATTENDANCE = {
   Saturday: [
@@ -115,7 +115,7 @@ function recentContext(payload, selectedDate) {
   }
   const days = {};
   for (const [date,day] of Object.entries(payload.days || {})) {
-    if (date >= cutoffDate) days[date] = {confirmed:!!day?.confirmed,overrides:day?.overrides||{},exceptions:day?.exceptions||{}};
+    if (date >= cutoffDate) days[date] = {confirmed:!!day?.confirmed,exceptions:day?.exceptions||{}};
   }
   return {
     today:isoDate(),
@@ -127,8 +127,9 @@ function recentContext(payload, selectedDate) {
     rules:{
       college:'attendance-based',
       germanCourse:'attendance-based, starts 2026-10-12, 5 hours/week total across Monday and Thursday',
-      germanStudy:'hour-based, starts 2026-10-12, flexible 4 hours/week',
-      studyAndTraining:'hour-based',
+      germanStudy:'hour-based, starts 2026-10-12; about 4 hours/week, but not used as a performance target',
+      studyAndTraining:'hour-based with no fixed daily or weekly target',
+      performance:'consistency, growth and progress compare the user with their own history rather than a reference schedule',
       missing:'unlogged is missing, not zero'
     }
   };
@@ -148,7 +149,7 @@ const editTrackerTool = {
           properties:{
             action:{
               type:'string',
-              enum:['set_attendance','set_external_exception','add_session','update_session','delete_session','confirm_day','set_target_override','add_entry']
+              enum:['set_attendance','set_external_exception','add_session','update_session','delete_session','confirm_day','add_entry']
             },
             date:{type:'string',description:'YYYY-MM-DD'},
             pillar:{type:'string',enum:['College','Study','German','Training']},
@@ -160,7 +161,6 @@ const editTrackerTool = {
             activity_type:{type:'string'},
             hours:{type:'number'},
             confirmed:{type:'boolean'},
-            target:{type:'number'},
             text:{type:'string'}
           },
           required:['action']
@@ -266,18 +266,6 @@ function executeOperation(payload, op, userMessage) {
     return {ok:true,summary:`${payload.days[date].confirmed?'Confirmed':'Unconfirmed'} ${date}`};
   }
 
-  if (action === 'set_target_override') {
-    if (!validDate(date) || !PILLARS.includes(op.pillar)) return {ok:false,error:'Invalid target override.'};
-    if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German tracking starts on 2026-10-12.'};
-    const t = num(op.target);
-    if (t === null || t < 0 || t > 24) return {ok:false,error:'Target must be between 0 and 24.'};
-    if ((op.pillar === 'College' || op.pillar === 'German') && !Number.isInteger(t)) return {ok:false,error:'Attendance targets must be whole numbers.'};
-    payload.days[date] = payload.days[date] || {};
-    payload.days[date].overrides = payload.days[date].overrides || {};
-    payload.days[date].overrides[op.pillar] = t;
-    return {ok:true,summary:`Set ${op.pillar} target override to ${t} on ${date}`};
-  }
-
   if (action === 'add_entry') {
     if (!validDate(date)) return {ok:false,error:'Invalid entry date.'};
     const text = String(op.text || '').trim().slice(0,2000);
@@ -329,15 +317,16 @@ export default async function handler(req,res) {
     const prompt = [
       'You are the embedded assistant inside Hamza Tracker.',
       'You can both answer questions and edit the signed-in user\'s tracker using the edit_tracker tool.',
-      'College is attendance-based. German course attendance starts on 2026-10-12 and totals 5 hours/week across Monday and Thursday. German self-study also starts on 2026-10-12 and is hour-based with a flexible 4 hours/week target. BIS Study and Training are hour-based.',
-      'Never invent facts the user did not provide. If a requested edit needs an unknown hour count, subject, attendance result, or date, ask one concise clarification instead of guessing.',
-      'Exception: if the user explicitly says they completed the whole scheduled day, you may use scheduled attendance as present and use the reference hours for BIS Study/Training; use Custom for unspecified Study type and Other for unspecified Training type. Do not invent German self-study hours because its 4h target is weekly and flexible.',
+      'College is attendance-based. German course attendance starts on 2026-10-12 and totals 5 hours/week across Monday and Thursday. German self-study also starts on 2026-10-12 and is hour-based; about 4 hours/week is expected, but it is not a performance reference target. BIS Study and Training are hour-based.',
+      'There is no fixed reference schedule and no fixed BIS Study or Training hour target. Performance is judged from the user\'s own history: recent stability, recent change, long-term change, and data coverage.',
+      'Never invent facts the user did not provide. If an edit needs an unknown hour count, subject, attendance result, or date, ask one concise clarification instead of guessing.',
+      'If the user says they completed the whole scheduled day, you may mark only the actual scheduled College/German attendance as present. Never invent Study, German self-study, or Training hours.',
       'Only delete a session if the user explicitly asks to delete/remove it.',
-      'Only alter reference targets when the user explicitly asks to change a target/reference. Never create German attendance or German study records before 2026-10-12.',
+      'Never create German attendance or German study records before 2026-10-12.',
       'Do not modify other users, site code, admin settings, authentication, or server configuration.',
       'Do not automatically read or expose diary text or session notes. You may add an Entry only if the user explicitly asks you to save something as an entry.',
       'Treat unlogged data as missing, not as zero. If an institution, teacher, coach, gym, or course provider cancels a commitment, treat it as externally cancelled/excused rather than a discipline failure. Use set_external_exception for a whole College day, German course, or Training session. Use set_attendance with status cancelled when only one specific College/German class is called off.',
-      'Never mark an externally cancelled commitment as missed. External cancellations must not count against completion, consistency, growth, or progress. After editing, briefly state exactly what changed.',
+      'Never mark an externally cancelled commitment as missed. External cancellations must not count against consistency, growth, or progress. After editing, briefly state exactly what changed.',
       'The user is a teenager; keep responses age-appropriate and safe.',
       isOwner === true ? 'This signed-in account is the site owner; app-level assistant requests are not rate-limited.' : '',
       'Tracker context JSON: ' + JSON.stringify(context),
