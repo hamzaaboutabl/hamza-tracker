@@ -419,7 +419,7 @@ body{
 
 <section class="view" id="assistant">
   <div class="card">
-    <div class="section-head"><div><h3>Tracker Assistant</h3><p>Chat with your own performance data. Diary text is not sent automatically.</p></div><span class="tiny" id="assistantLimitText"></span></div>
+    <div class="section-head"><div><h3>Tracker Assistant</h3><p>Gemini can read your tracker context and directly log/correct your own tracker when you ask. Diary text and session notes are not sent automatically.</p></div><span class="tiny" id="assistantLimitText"></span></div>
     <div class="assistant-prompts">
       <button class="btn small" data-ai-prompt="How am I doing this week?">This week</button>
       <button class="btn small" data-ai-prompt="What am I neglecting most right now?">Weakest area</button>
@@ -705,13 +705,21 @@ async function askAssistant(text){
   try{
     const {data:{session}}=await cloud.auth.getSession();
     if(!session?.access_token)throw new Error('Sign in again.');
+    await pushCloud();
     const r=await fetch('/api/assistant',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
-      body:JSON.stringify({message,history:prior,context:assistantContext()})
+      body:JSON.stringify({message,history:prior,selectedDate:activeDate})
     });
     const out=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(out.error||'Assistant request failed.');
+    if(out.payload){
+      data=normalize(out.payload);
+      localStorage.setItem(KEY,JSON.stringify(data));
+      setSyncState('Synced');
+      renderAll();
+      queueTelemetry();
+    }
     assistantMessages.push({role:'assistant',content:out.reply});
   }catch(e){
     assistantMessages.push({role:'assistant',content:'Error: '+(e?.message||'Assistant unavailable.')});
