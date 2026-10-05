@@ -6,7 +6,8 @@ const MODEL = 'gemini-3.8-flash';
 const PILLARS = ['College','Study','German','Training'];
 const GERMAN_START = '2026-10-12';
 const GERMAN_COURSE_WEEKLY_HOURS = 5;
-const GERMAN_STUDY_WEEKLY_TARGET = 4;
+const GERMAN_STUDY_WEEKLY_HOURS = 4;
+const TRAINING_ATTENDANCE_ID = 'training-session';
 
 const ATTENDANCE = {
   Saturday: [
@@ -104,7 +105,7 @@ function recentContext(payload, selectedDate) {
   cutoff.setUTCDate(cutoff.getUTCDate()-45);
   const cutoffDate = cutoff.toISOString().slice(0,10);
   const sessions = {};
-  for (const p of ['Study','German','Training']) {
+  for (const p of ['Study','German']) {
     sessions[p] = (payload.sessions?.[p] || [])
       .filter(x => validDate(x?.date) && x.date >= cutoffDate && (p !== 'German' || String(x?.type || '').toLowerCase() !== 'course'))
       .map(x => ({id:x.id,date:x.date,type:x.type,hours:Number(x.hours)||0}));
@@ -115,20 +116,24 @@ function recentContext(payload, selectedDate) {
   }
   const days = {};
   for (const [date,day] of Object.entries(payload.days || {})) {
-    if (date >= cutoffDate) days[date] = {confirmed:!!day?.confirmed,overrides:day?.overrides||{},exceptions:day?.exceptions||{}};
+    if (date >= cutoffDate) days[date] = {exceptions:day?.exceptions||{}};
   }
   return {
     today:isoDate(),
     selectedDate:validDate(selectedDate)?selectedDate:null,
     attendanceSchedule:ATTENDANCE,
+    trainingAttendanceId:TRAINING_ATTENDANCE_ID,
     recentSessions:sessions,
     recentAttendance:attendance,
     recentDays:days,
     rules:{
-      college:'attendance-based',
-      germanCourse:'attendance-based, starts 2026-10-12, 5 hours/week total across Monday and Thursday',
-      germanStudy:'hour-based, starts 2026-10-12, flexible 4 hours/week',
-      studyAndTraining:'hour-based',
+      scoring:'Only College attendance, German course attendance, and Training attendance affect performance scores. The three categories are equally weighted when data exists.',
+      college:'attendance-based from the real college schedule',
+      germanCourse:'attendance-based, starts 2026-10-12',
+      training:'attendance-based and manually logged on any date; no fixed training schedule or hour target',
+      study:'hours are logged for information only and never scored',
+      germanStudy:'hours are logged for information only and never scored; starts 2026-10-12',
+      calledOff:'cancelled-by-institution/teacher/coach items are excluded from scores',
       missing:'unlogged is missing, not zero'
     }
   };
@@ -148,19 +153,17 @@ const editTrackerTool = {
           properties:{
             action:{
               type:'string',
-              enum:['set_attendance','set_external_exception','add_session','update_session','delete_session','confirm_day','set_target_override','add_entry']
+              enum:['set_attendance','set_external_exception','add_session','update_session','delete_session','add_entry']
             },
             date:{type:'string',description:'YYYY-MM-DD'},
             pillar:{type:'string',enum:['College','Study','German','Training']},
-            item_id:{type:'string',description:'Scheduled attendance item id from context.'},
+            item_id:{type:'string',description:'Attendance item id from context. Use training-session for Training.'},
             status:{type:'string',enum:['present','absent','cancelled','unlogged']},
             active:{type:'boolean',description:'For set_external_exception: true to excuse the commitment, false to clear it.'},
             reason:{type:'string',description:'Optional short reason, e.g. coach cancelled or institution closed.'},
             session_id:{type:'string'},
             activity_type:{type:'string'},
             hours:{type:'number'},
-            confirmed:{type:'boolean'},
-            target:{type:'number'},
             text:{type:'string'}
           },
           required:['action']
@@ -178,11 +181,30 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'set_attendance') {
     if (!validDate(date)) return {ok:false,error:'Invalid attendance date.'};
+    if (!['present','absent','cancelled','unlogged'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
+
+    if (op.item_id === TRAINING_ATTENDANCE_ID || op.pillar === 'Training') {
+      payload.days[date] = payload.days[date] || {};
+      payload.days[date].exceptions = payload.days[date].exceptions || {};
+      if (op.status === 'cancelled') {
+        payload.days[date].exceptions.Training = {type:'external_cancelled',reason:'Training called off',updatedAt:new Date().toISOString()};
+        payload.attendance[date] = payload.attendance[date] || {};
+        delete payload.attendance[date][TRAINING_ATTENDANCE_ID];
+      } else {
+        delete payload.days[date].exceptions.Training;
+        if (!Object.keys(payload.days[date].exceptions).length) delete payload.days[date].exceptions;
+        payload.attendance[date] = payload.attendance[date] || {};
+        if (op.status === 'unlogged') delete payload.attendance[date][TRAINING_ATTENDANCE_ID];
+        else payload.attendance[date][TRAINING_ATTENDANCE_ID] = op.status;
+      }
+      if (payload.attendance[date] && !Object.keys(payload.attendance[date]).length) delete payload.attendance[date];
+      return {ok:true,summary:`Training: ${op.status} on ${date}`};
+    }
+
     const scheduled = ATTENDANCE[weekday(date)] || [];
     const item = scheduled.find(x => x.id === op.item_id);
-    if (!item) return {ok:false,error:'That attendance item is not scheduled on that date.'};
+    if (!item) return {ok:false,error:'That College/German attendance item is not scheduled on that date.'};
     if (item.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German course tracking starts on 2026-10-12.'};
-    if (!['present','absent','cancelled','unlogged'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
     payload.attendance[date] = payload.attendance[date] || {};
     if (op.status === 'unlogged') delete payload.attendance[date][item.id];
     else payload.attendance[date][item.id] = op.status;
@@ -211,21 +233,21 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'add_session') {
     if (!validDate(date)) return {ok:false,error:'Invalid session date.'};
-    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Only Study, German self-study, and Training are hour-based sessions.'};
+    if (!['Study','German'].includes(op.pillar)) return {ok:false,error:'Only Study and German self-study use hour sessions. Training is attendance-only.'};
     if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German study tracking starts on 2026-10-12.'};
     const h = num(op.hours);
     if (h === null || h <= 0 || h > 24) return {ok:false,error:'Hours must be between 0 and 24.'};
-    const defaultType = op.pillar === 'Study' ? 'Custom' : op.pillar === 'German' ? 'Self-study' : 'Other';
+    const defaultType = op.pillar === 'Study' ? 'Custom' : 'Self-study';
     let type = String(op.activity_type || defaultType).slice(0,80);
     if (op.pillar === 'German' && type.toLowerCase() === 'course') type = 'Self-study';
-    const prefix = op.pillar === 'Study' ? 's' : op.pillar === 'German' ? 'g' : 't';
+    const prefix = op.pillar === 'Study' ? 's' : 'g';
     const row = {id:uid(prefix),date,type,hours:h,note:'',createdAt:new Date().toISOString()};
     payload.sessions[op.pillar].push(row);
     return {ok:true,summary:`Added ${h}h ${op.pillar === 'German' ? 'German study' : op.pillar} (${type}) on ${date}`,session_id:row.id};
   }
 
   if (action === 'update_session') {
-    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Invalid session pillar.'};
+    if (!['Study','German'].includes(op.pillar)) return {ok:false,error:'Only Study and German self-study have hour sessions.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
     if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is tracked by attendance, not an hourly session.'};
@@ -249,33 +271,12 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'delete_session') {
     if (!explicitDelete) return {ok:false,error:'Session deletion requires the user to explicitly say delete/remove.'};
-    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Invalid session pillar.'};
+    if (!['Study','German'].includes(op.pillar)) return {ok:false,error:'Only Study and German self-study have hour sessions.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
     if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is attendance-based and cannot be deleted as an hourly study session.'};
     payload.sessions[op.pillar] = payload.sessions[op.pillar].filter(x => x.id !== op.session_id);
     return {ok:true,summary:`Deleted ${op.pillar === 'German' ? 'German study' : op.pillar} session ${op.session_id}`};
-  }
-
-  if (action === 'confirm_day') {
-    if (!validDate(date)) return {ok:false,error:'Invalid day date.'};
-    payload.days[date] = payload.days[date] || {};
-    payload.days[date].confirmed = op.confirmed !== false;
-    if (payload.days[date].confirmed) payload.days[date].confirmedAt = new Date().toISOString();
-    else delete payload.days[date].confirmedAt;
-    return {ok:true,summary:`${payload.days[date].confirmed?'Confirmed':'Unconfirmed'} ${date}`};
-  }
-
-  if (action === 'set_target_override') {
-    if (!validDate(date) || !PILLARS.includes(op.pillar)) return {ok:false,error:'Invalid target override.'};
-    if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German tracking starts on 2026-10-12.'};
-    const t = num(op.target);
-    if (t === null || t < 0 || t > 24) return {ok:false,error:'Target must be between 0 and 24.'};
-    if ((op.pillar === 'College' || op.pillar === 'German') && !Number.isInteger(t)) return {ok:false,error:'Attendance targets must be whole numbers.'};
-    payload.days[date] = payload.days[date] || {};
-    payload.days[date].overrides = payload.days[date].overrides || {};
-    payload.days[date].overrides[op.pillar] = t;
-    return {ok:true,summary:`Set ${op.pillar} target override to ${t} on ${date}`};
   }
 
   if (action === 'add_entry') {
@@ -328,16 +329,19 @@ export default async function handler(req,res) {
 
     const prompt = [
       'You are the embedded assistant inside Hamza Tracker.',
-      'You can both answer questions and edit the signed-in user\'s tracker using the edit_tracker tool.',
-      'College is attendance-based. German course attendance starts on 2026-10-12 and totals 5 hours/week across Monday and Thursday. German self-study also starts on 2026-10-12 and is hour-based with a flexible 4 hours/week target. BIS Study and Training are hour-based.',
-      'Never invent facts the user did not provide. If a requested edit needs an unknown hour count, subject, attendance result, or date, ask one concise clarification instead of guessing.',
-      'Exception: if the user explicitly says they completed the whole scheduled day, you may use scheduled attendance as present and use the reference hours for BIS Study/Training; use Custom for unspecified Study type and Other for unspecified Training type. Do not invent German self-study hours because its 4h target is weekly and flexible.',
-      'Only delete a session if the user explicitly asks to delete/remove it.',
-      'Only alter reference targets when the user explicitly asks to change a target/reference. Never create German attendance or German study records before 2026-10-12.',
+      'You can answer questions and edit the signed-in user\'s tracker with the edit_tracker tool.',
+      'Performance scoring uses ONLY three things: College attendance, German course attendance, and Training attendance. Study hours, German self-study hours, and old Training-hour records are informational only and must never affect scores.',
+      'There is NO fixed reference schedule, daily hour requirement, weekly hour target, points requirement, or target override in scoring.',
+      'College attendance comes from the actual College lecture/section schedule. German course attendance starts on 2026-10-12. Training attendance is manually logged on any date using item_id training-session; do not invent a fixed Training schedule.',
+      'If the user says they trained, mark Training present. If they say they skipped a planned training, mark it absent. If the coach/gym called it off, mark it cancelled/external and it must not hurt the score.',
+      'Study and German self-study may be logged in hours when the user gives the hours. Never invent their hours, and never turn them into performance points.',
+      'Never invent attendance, dates, subjects, or hours. Ask one concise clarification when a needed fact is missing.',
+      'Only delete a study session if the user explicitly asks to delete/remove it.',
+      'Never create German course attendance or German self-study records before 2026-10-12.',
       'Do not modify other users, site code, admin settings, authentication, or server configuration.',
-      'Do not automatically read or expose diary text or session notes. You may add an Entry only if the user explicitly asks you to save something as an entry.',
-      'Treat unlogged data as missing, not as zero. If an institution, teacher, coach, gym, or course provider cancels a commitment, treat it as externally cancelled/excused rather than a discipline failure. Use set_external_exception for a whole College day, German course, or Training session. Use set_attendance with status cancelled when only one specific College/German class is called off.',
-      'Never mark an externally cancelled commitment as missed. External cancellations must not count against completion, consistency, growth, or progress. After editing, briefly state exactly what changed.',
+      'Do not automatically read or expose diary text or session notes. Add an Entry only if the user explicitly asks.',
+      'Unlogged means missing, not zero. College/German classes or Training called off by the institution, teacher, or coach are excluded from scoring rather than counted as misses.',
+      'After editing, briefly state exactly what changed.',
       'The user is a teenager; keep responses age-appropriate and safe.',
       isOwner === true ? 'This signed-in account is the site owner; app-level assistant requests are not rate-limited.' : '',
       'Tracker context JSON: ' + JSON.stringify(context),
