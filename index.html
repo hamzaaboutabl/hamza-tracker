@@ -839,9 +839,9 @@ function uid(prefix='x'){return prefix+Date.now().toString(36)+Math.random().toS
 function escapeHtml(s=''){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
 function germanActive(date){return String(date)>=GERMAN_START}
 function target(date,pillar){
+  if(pillar==='German'&&!germanActive(date))return 0;
   const override=data.days[date]?.overrides?.[pillar];
   if(override!==undefined&&override!==null&&override!=='')return Number(override)||0;
-  if(pillar==='German'&&!germanActive(date))return 0;
   return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0);
 }
 function sessionHours(date,pillar){return data.sessions[pillar].filter(x=>x.date===date).reduce((s,x)=>s+Number(x.hours||0),0)}
