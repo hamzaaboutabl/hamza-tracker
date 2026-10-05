@@ -607,6 +607,7 @@ function target(date,pillar){
   return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0);
 }
 function sessionHours(date,pillar){return data.sessions[pillar].filter(x=>x.date===date).reduce((s,x)=>s+Number(x.hours||0),0)}
+function totalHours(dates,pillar){return dates.reduce((s,d)=>s+sessionHours(d,pillar),0)}
 function scheduledAttendance(date,pillar=null){
   const items=attendanceSchedule[dayName(date)]||[];
   return pillar?items.filter(x=>x.pillar===pillar):items;
@@ -901,8 +902,12 @@ document.getElementById('loginBtn').addEventListener('click',signInGoogle);
 document.getElementById('gateLoginBtn').addEventListener('click',signInGoogle);
 document.getElementById('logoutBtn').addEventListener('click',()=>cloud.auth.signOut());
 document.getElementById('systemLogoutBtn').addEventListener('click',()=>cloud.auth.signOut());
-renderAll();
 initCloud();
+try{renderAll()}catch(err){
+  const gs=document.getElementById('gateStatus');
+  if(gs)gs.textContent='Tracker UI error — reload once. If it persists, send me a screenshot.';
+  console.error(err);
+}
 })();
 </script>
 </body>
