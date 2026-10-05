@@ -4,6 +4,9 @@ const SUPABASE_URL = 'https://firnmcqtjprckgqdcplg.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oG0bcYmr6nijxKeY02U0YA_iHnp79gZ';
 const MODEL = 'gemini-3.8-flash';
 const PILLARS = ['College','Study','German','Training'];
+const GERMAN_START = '2026-10-12';
+const GERMAN_COURSE_WEEKLY_HOURS = 5;
+const GERMAN_STUDY_WEEKLY_TARGET = 4;
 
 const ATTENDANCE = {
   Saturday: [
@@ -101,9 +104,9 @@ function recentContext(payload, selectedDate) {
   cutoff.setUTCDate(cutoff.getUTCDate()-45);
   const cutoffDate = cutoff.toISOString().slice(0,10);
   const sessions = {};
-  for (const p of ['Study','Training']) {
+  for (const p of ['Study','German','Training']) {
     sessions[p] = (payload.sessions?.[p] || [])
-      .filter(x => validDate(x?.date) && x.date >= cutoffDate)
+      .filter(x => validDate(x?.date) && x.date >= cutoffDate && (p !== 'German' || String(x?.type || '').toLowerCase() !== 'course'))
       .map(x => ({id:x.id,date:x.date,type:x.type,hours:Number(x.hours)||0}));
   }
   const attendance = {};
@@ -122,7 +125,9 @@ function recentContext(payload, selectedDate) {
     recentAttendance:attendance,
     recentDays:days,
     rules:{
-      collegeAndGerman:'attendance-based',
+      college:'attendance-based',
+      germanCourse:'attendance-based, starts 2026-10-12, 5 hours/week total across Monday and Thursday',
+      germanStudy:'hour-based, starts 2026-10-12, flexible 4 hours/week',
       studyAndTraining:'hour-based',
       missing:'unlogged is missing, not zero'
     }
@@ -174,6 +179,7 @@ function executeOperation(payload, op, userMessage) {
     const scheduled = ATTENDANCE[weekday(date)] || [];
     const item = scheduled.find(x => x.id === op.item_id);
     if (!item) return {ok:false,error:'That attendance item is not scheduled on that date.'};
+    if (item.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German course tracking starts on 2026-10-12.'};
     if (!['present','absent','unlogged'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
     payload.attendance[date] = payload.attendance[date] || {};
     if (op.status === 'unlogged') delete payload.attendance[date][item.id];
@@ -184,21 +190,27 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'add_session') {
     if (!validDate(date)) return {ok:false,error:'Invalid session date.'};
-    if (!['Study','Training'].includes(op.pillar)) return {ok:false,error:'Only Study and Training are hour-based sessions.'};
+    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Only Study, German self-study, and Training are hour-based sessions.'};
+    if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German study tracking starts on 2026-10-12.'};
     const h = num(op.hours);
     if (h === null || h <= 0 || h > 24) return {ok:false,error:'Hours must be between 0 and 24.'};
-    const type = String(op.activity_type || (op.pillar === 'Study' ? 'Custom' : 'Other')).slice(0,80);
-    const row = {id:uid(op.pillar==='Study'?'s':'t'),date,type,hours:h,note:'',createdAt:new Date().toISOString()};
+    const defaultType = op.pillar === 'Study' ? 'Custom' : op.pillar === 'German' ? 'Self-study' : 'Other';
+    let type = String(op.activity_type || defaultType).slice(0,80);
+    if (op.pillar === 'German' && type.toLowerCase() === 'course') type = 'Self-study';
+    const prefix = op.pillar === 'Study' ? 's' : op.pillar === 'German' ? 'g' : 't';
+    const row = {id:uid(prefix),date,type,hours:h,note:'',createdAt:new Date().toISOString()};
     payload.sessions[op.pillar].push(row);
-    return {ok:true,summary:`Added ${h}h ${op.pillar} (${type}) on ${date}`,session_id:row.id};
+    return {ok:true,summary:`Added ${h}h ${op.pillar === 'German' ? 'German study' : op.pillar} (${type}) on ${date}`,session_id:row.id};
   }
 
   if (action === 'update_session') {
-    if (!['Study','Training'].includes(op.pillar)) return {ok:false,error:'Invalid session pillar.'};
+    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Invalid session pillar.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
+    if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is tracked by attendance, not an hourly session.'};
     if (op.date !== undefined) {
       if (!validDate(op.date)) return {ok:false,error:'Invalid new date.'};
+      if (op.pillar === 'German' && op.date < GERMAN_START) return {ok:false,error:'German study tracking starts on 2026-10-12.'};
       row.date = op.date;
     }
     if (op.hours !== undefined) {
@@ -206,17 +218,22 @@ function executeOperation(payload, op, userMessage) {
       if (h === null || h <= 0 || h > 24) return {ok:false,error:'Hours must be between 0 and 24.'};
       row.hours = h;
     }
-    if (op.activity_type !== undefined) row.type = String(op.activity_type).slice(0,80);
-    return {ok:true,summary:`Updated ${op.pillar} session ${op.session_id}`};
+    if (op.activity_type !== undefined) {
+      let type = String(op.activity_type).slice(0,80);
+      if (op.pillar === 'German' && type.toLowerCase() === 'course') type = 'Self-study';
+      row.type = type;
+    }
+    return {ok:true,summary:`Updated ${op.pillar === 'German' ? 'German study' : op.pillar} session ${op.session_id}`};
   }
 
   if (action === 'delete_session') {
     if (!explicitDelete) return {ok:false,error:'Session deletion requires the user to explicitly say delete/remove.'};
-    if (!['Study','Training'].includes(op.pillar)) return {ok:false,error:'Invalid session pillar.'};
-    const before = payload.sessions[op.pillar].length;
+    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Invalid session pillar.'};
+    const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
+    if (!row) return {ok:false,error:'Session not found.'};
+    if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is attendance-based and cannot be deleted as an hourly study session.'};
     payload.sessions[op.pillar] = payload.sessions[op.pillar].filter(x => x.id !== op.session_id);
-    if (payload.sessions[op.pillar].length === before) return {ok:false,error:'Session not found.'};
-    return {ok:true,summary:`Deleted ${op.pillar} session ${op.session_id}`};
+    return {ok:true,summary:`Deleted ${op.pillar === 'German' ? 'German study' : op.pillar} session ${op.session_id}`};
   }
 
   if (action === 'confirm_day') {
@@ -290,11 +307,11 @@ export default async function handler(req,res) {
     const prompt = [
       'You are the embedded assistant inside Hamza Tracker.',
       'You can both answer questions and edit the signed-in user\'s tracker using the edit_tracker tool.',
-      'College and German are attendance-based. Study and Training are hour-based.',
+      'College is attendance-based. German course attendance starts on 2026-10-12 and totals 5 hours/week across Monday and Thursday. German self-study also starts on 2026-10-12 and is hour-based with a flexible 4 hours/week target. BIS Study and Training are hour-based.',
       'Never invent facts the user did not provide. If a requested edit needs an unknown hour count, subject, attendance result, or date, ask one concise clarification instead of guessing.',
-      'Exception: if the user explicitly says they completed the whole scheduled day, you may use scheduled attendance as present and use the reference hours for Study/Training; use Custom for unspecified Study type and Other for unspecified Training type.',
+      'Exception: if the user explicitly says they completed the whole scheduled day, you may use scheduled attendance as present and use the reference hours for BIS Study/Training; use Custom for unspecified Study type and Other for unspecified Training type. Do not invent German self-study hours because its 4h target is weekly and flexible.',
       'Only delete a session if the user explicitly asks to delete/remove it.',
-      'Only alter reference targets when the user explicitly asks to change a target/reference.',
+      'Only alter reference targets when the user explicitly asks to change a target/reference. Never create German attendance or German study records before 2026-10-12.',
       'Do not modify other users, site code, admin settings, authentication, or server configuration.',
       'Do not automatically read or expose diary text or session notes. You may add an Entry only if the user explicitly asks you to save something as an entry.',
       'Treat unlogged data as missing, not as zero.',
