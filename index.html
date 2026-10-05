@@ -874,8 +874,13 @@ function attendanceCounts(dates,pillar){
   const out={present:0,absent:0,cancelled:0,unlogged:0,scheduled:0,tracked:0,rate:null};
   dates.forEach(date=>{
     if(pillar==='Training'){
-      if(!trainingExpected(date))return;
       const status=trainingAttendanceStatus(date);
+      if(!trainingExpected(date)){
+        if(status==='present'){out.present++;out.scheduled++}
+        else if(status==='absent'){out.absent++;out.scheduled++}
+        else if(status==='cancelled')out.cancelled++;
+        return;
+      }
       out.scheduled++;
       if(status==='present')out.present++;
       else if(status==='absent')out.absent++;
@@ -1037,7 +1042,7 @@ function renderToday(){
     `<div class="pillar-mini college"><div class="name"><span class="dot"></span>College</div><b>${isExternallyCancelled(activeDate,'College')?'Called off':college.tracked?college.present+'/'+college.tracked+' attended':college.scheduled?college.unlogged+' unlogged':'No college'}</b></div>`,
     `<div class="pillar-mini study"><div class="name"><span class="dot"></span>Study</div><b>${fmt(sessionHours(activeDate,'Study'))}h</b><div class="tiny">not scored</div></div>`,
     `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${!germanActive(activeDate)?'Starts Oct 12':isExternallyCancelled(activeDate,'German')?'Course called off':german.tracked?german.present+'/'+german.tracked+' course':german.scheduled?german.unlogged+' course unlogged':'No course'}</b><div class="tiny">${germanActive(activeDate)?fmt(germanStudyHours(activeDate))+'h study · not scored':''}</div></div>`,
-    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${!trainingExpected(activeDate)?'No training planned':trainingAttendanceStatus(activeDate)==='present'?'Attended':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b></div>`
+    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${trainingAttendanceStatus(activeDate)==='present'?'Attended':!trainingExpected(activeDate)?'No training planned':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b>${!trainingExpected(activeDate)&&trainingAttendanceStatus(activeDate)!=='present'?'<div class="tiny">Optional today</div>':''}</div>`
   ].join('');
 
   const exceptionCandidates=[
@@ -1089,7 +1094,15 @@ function renderToday(){
       <button type="button" class="attend-clear" data-training-attendance="clear" aria-label="Clear attendance">×</button>
     </div>
     <div class="attendance-status ${ts||'unlogged'}">${ts==='present'?'Attended':ts==='absent'?'Missed':ts==='cancelled'?'Called off':'Not logged'}</div>
-  </div>`:'<div class="attendance-card training"><h4>Training</h4><div class="attendance-meta">No training planned on Monday or Friday.</div></div>';
+  </div>`:`<div class="attendance-card training" data-status="${ts||''}">
+    <h4>Training</h4>
+    <div class="attendance-meta">No training planned today · optional</div>
+    <div class="attendance-actions">
+      <button type="button" class="attend-yes" data-training-attendance="present">${ts==='present'?'Attended':'I trained'}</button>
+      <button type="button" class="attend-clear" data-training-attendance="clear" aria-label="Clear attendance">×</button>
+    </div>
+    <div class="attendance-status ${ts||'unlogged'}">${ts==='present'?'Extra training logged':'Not planned'}</div>
+  </div>`;
 
   document.getElementById('attendanceGrid').innerHTML=scheduledHtml+trainingHtml;
   document.querySelectorAll('[data-attendance]').forEach(b=>b.onclick=()=>{
