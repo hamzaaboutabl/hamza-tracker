@@ -247,6 +247,7 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'set_target_override') {
     if (!validDate(date) || !PILLARS.includes(op.pillar)) return {ok:false,error:'Invalid target override.'};
+    if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German tracking starts on 2026-10-12.'};
     const t = num(op.target);
     if (t === null || t < 0 || t > 24) return {ok:false,error:'Target must be between 0 and 24.'};
     if ((op.pillar === 'College' || op.pillar === 'German') && !Number.isInteger(t)) return {ok:false,error:'Attendance targets must be whole numbers.'};
