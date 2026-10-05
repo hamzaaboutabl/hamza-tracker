@@ -115,7 +115,7 @@ function recentContext(payload, selectedDate) {
   }
   const days = {};
   for (const [date,day] of Object.entries(payload.days || {})) {
-    if (date >= cutoffDate) days[date] = {confirmed:!!day?.confirmed,overrides:day?.overrides||{}};
+    if (date >= cutoffDate) days[date] = {confirmed:!!day?.confirmed,overrides:day?.overrides||{},exceptions:day?.exceptions||{}};
   }
   return {
     today:isoDate(),
@@ -148,12 +148,14 @@ const editTrackerTool = {
           properties:{
             action:{
               type:'string',
-              enum:['set_attendance','add_session','update_session','delete_session','confirm_day','set_target_override','add_entry']
+              enum:['set_attendance','set_external_exception','add_session','update_session','delete_session','confirm_day','set_target_override','add_entry']
             },
             date:{type:'string',description:'YYYY-MM-DD'},
             pillar:{type:'string',enum:['College','Study','German','Training']},
             item_id:{type:'string',description:'Scheduled attendance item id from context.'},
-            status:{type:'string',enum:['present','absent','unlogged']},
+            status:{type:'string',enum:['present','absent','cancelled','unlogged']},
+            active:{type:'boolean',description:'For set_external_exception: true to excuse the commitment, false to clear it.'},
+            reason:{type:'string',description:'Optional short reason, e.g. coach cancelled or institution closed.'},
             session_id:{type:'string'},
             activity_type:{type:'string'},
             hours:{type:'number'},
@@ -180,12 +182,31 @@ function executeOperation(payload, op, userMessage) {
     const item = scheduled.find(x => x.id === op.item_id);
     if (!item) return {ok:false,error:'That attendance item is not scheduled on that date.'};
     if (item.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German course tracking starts on 2026-10-12.'};
-    if (!['present','absent','unlogged'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
+    if (!['present','absent','cancelled','unlogged'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
     payload.attendance[date] = payload.attendance[date] || {};
     if (op.status === 'unlogged') delete payload.attendance[date][item.id];
     else payload.attendance[date][item.id] = op.status;
     if (!Object.keys(payload.attendance[date]).length) delete payload.attendance[date];
     return {ok:true,summary:`${item.label}: ${op.status} on ${date}`};
+  }
+
+  if (action === 'set_external_exception') {
+    if (!validDate(date)) return {ok:false,error:'Invalid exception date.'};
+    if (!['College','German','Training'].includes(op.pillar)) return {ok:false,error:'External exceptions apply to College, German course, or Training.'};
+    if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German course tracking starts on 2026-10-12, so no exception is needed before then.'};
+    payload.days[date] = payload.days[date] || {};
+    payload.days[date].exceptions = payload.days[date].exceptions || {};
+    if (op.active === false) {
+      delete payload.days[date].exceptions[op.pillar];
+      if (!Object.keys(payload.days[date].exceptions).length) delete payload.days[date].exceptions;
+      return {ok:true,summary:`Cleared external cancellation for ${op.pillar} on ${date}`};
+    }
+    payload.days[date].exceptions[op.pillar] = {
+      type:'external_cancelled',
+      reason:String(op.reason || 'Externally cancelled').slice(0,120),
+      updatedAt:new Date().toISOString()
+    };
+    return {ok:true,summary:`Marked ${op.pillar} externally cancelled on ${date}`};
   }
 
   if (action === 'add_session') {
@@ -315,8 +336,8 @@ export default async function handler(req,res) {
       'Only alter reference targets when the user explicitly asks to change a target/reference. Never create German attendance or German study records before 2026-10-12.',
       'Do not modify other users, site code, admin settings, authentication, or server configuration.',
       'Do not automatically read or expose diary text or session notes. You may add an Entry only if the user explicitly asks you to save something as an entry.',
-      'Treat unlogged data as missing, not as zero.',
-      'After editing, briefly state exactly what changed.',
+      'Treat unlogged data as missing, not as zero. If an institution, teacher, coach, gym, or course provider cancels a commitment, treat it as externally cancelled/excused rather than a discipline failure. Use set_external_exception for a whole College day, German course, or Training session. Use set_attendance with status cancelled when only one specific College/German class is called off.',
+      'Never mark an externally cancelled commitment as missed. External cancellations must not count against completion, consistency, growth, or progress. After editing, briefly state exactly what changed.',
       'The user is a teenager; keep responses age-appropriate and safe.',
       isOwner === true ? 'This signed-in account is the site owner; app-level assistant requests are not rate-limited.' : '',
       'Tracker context JSON: ' + JSON.stringify(context),
