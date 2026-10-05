@@ -815,6 +815,10 @@ function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function avg(xs){return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null}
 function sd(xs){if(xs.length<2)return 0;const m=avg(xs);return Math.sqrt(xs.reduce((s,x)=>s+(x-m)**2,0)/xs.length)}
 function fmt(x,d=1){return Number.isFinite(Number(x))?Number(x).toFixed(d).replace(/\.0$/,''):'0'}
+function parseHours(v){
+  const n=Number(String(v??'').trim().replace(',','.'));
+  return Number.isFinite(n)&&n>0&&n<=24?n:null;
+}
 function uid(prefix='x'){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function escapeHtml(s=''){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
 function germanActive(date){return String(date)>=GERMAN_START}
@@ -958,8 +962,8 @@ function daySummary(date){
   return bits;
 }
 function addSession(pillar,date,type,hours,note=''){
-  const h=Number(hours);
-  if(!date||!Number.isFinite(h)||h<=0)return false;
+  const h=parseHours(hours);
+  if(!date||h===null)return false;
   if(!['Study','German'].includes(pillar))return false;
   if(pillar==='German'&&!germanActive(date))return false;
   data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});
@@ -1097,19 +1101,30 @@ function renderToday(){
   const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[])];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
     const sub=p==='German'?'German self-study · not scored':'Study time · not scored';
-    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`;
+    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="custom hours"><button type="button" class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div><div class="tiny" id="quickMsg${p}" style="margin-top:6px"></div></div>`;
   }).join('');
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
     const [p,h]=b.dataset.quickHours.split('|');
     document.getElementById('quickHours'+p).value=h;
     b.closest('.quick-hours').querySelectorAll('.quick-hour').forEach(x=>x.classList.toggle('selected',x===b));
   });
-  document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>{
-    const p=b.dataset.quickAdd;
-    if(addSession(p,activeDate,document.getElementById('quickType'+p).value,document.getElementById('quickHours'+p).value)){
-      document.getElementById('quickHours'+p).value='';
-      renderAll();
+  const submitQuickHours=p=>{
+    const input=document.getElementById('quickHours'+p),msg=document.getElementById('quickMsg'+p);
+    const h=parseHours(input?.value);
+    if(h===null){
+      if(msg)msg.textContent='Enter hours from 0.25 to 24.';
+      input?.focus();
+      return;
     }
+    if(addSession(p,activeDate,document.getElementById('quickType'+p).value,h)){
+      input.value='';
+      renderAll();
+    }else if(msg)msg.textContent='Could not save.';
+  };
+  document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>submitQuickHours(b.dataset.quickAdd));
+  ['Study',...(germanActive(activeDate)?['German']:[])].forEach(p=>{
+    const input=document.getElementById('quickHours'+p);
+    if(input)input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();submitQuickHours(p)}};
   });
 
   const editablePillars=['Study',...(germanActive(activeDate)?['German']:[])];
@@ -1131,7 +1146,7 @@ function renderToday(){
         <div class="fields" style="margin-top:9px">
           <div class="field"><label>Date</label><input data-edit-date type="date" value="${x.date}"></div>
           <div class="field"><label>Type</label><select data-edit-type>${opts.map(o=>`<option ${o===x.type?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select></div>
-          <div class="field"><label>Hours</label><input data-edit-hours type="number" min="0.1" step="0.25" value="${x.hours}"></div>
+          <div class="field"><label>Hours</label><input data-edit-hours type="number" min="0.25" max="24" step="0.25" inputmode="decimal" value="${x.hours}"></div>
           <div class="field"><label>Note</label><input data-edit-note value="${escapeHtml(x.note||'')}"></div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">
@@ -1147,9 +1162,9 @@ function renderToday(){
     const card=b.closest('[data-session-card]');
     const item=data.sessions[p].find(x=>x.id===id);
     if(!item)return;
-    const newHours=Number(card.querySelector('[data-edit-hours]').value);
+    const newHours=parseHours(card.querySelector('[data-edit-hours]').value);
     const newDate=card.querySelector('[data-edit-date]').value||item.date;
-    if(!Number.isFinite(newHours)||newHours<=0)return;
+    if(newHours===null){alert('Hours must be between 0.25 and 24.');return;}
     if(p==='German'&&!germanActive(newDate))return;
     item.date=newDate;
     item.type=card.querySelector('[data-edit-type]').value||item.type;
@@ -1188,7 +1203,7 @@ function sessionPageHtml(pillar){
     extra=`<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>This month</h3></div></div>${Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="row"><div class="grow">${escapeHtml(k)}</div><b>${fmt(v)}h</b></div>`).join(''):'<div class="empty">No study yet.</div>'}</div>`;
   }
   const rows=[...data.sessions[pillar]].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,60).map(x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.type)}</td><td>${fmt(x.hours)}h</td><td>${escapeHtml(x.note||'')}</td><td><button class="btn small" data-del-session="${pillar}|${x.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No sessions yet.</td></tr>';
-  return `<div class="grid g2"><div class="card pillar ${cls}"><div class="section-head"><div><h3>Add study</h3></div></div><form data-session-form="${pillar}"><div class="fields"><div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div><div class="field"><label>Subject</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div></div><div class="fields" style="margin-top:10px"><div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div><div class="field"><label>Note</label><input name="note" placeholder="Optional"></div></div><div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,2.5,3,4].map(h=>`<button type="button" class="chip ${cls}" data-fill-hours="${h}">${h}h</button>`).join('')}</div><button class="btn pillar-btn ${cls}" style="margin-top:9px">Add</button></form></div><div class="card"><div class="section-head"><div><h3>Totals</h3></div></div><div class="grid g3"><div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div><div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div><div class="metric"><span class="label">All time</span><b>${fmt(all)}h</b></div></div></div></div>${extra}<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Recent</h3></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Subject</th><th>Hours</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return `<div class="grid g2"><div class="card pillar ${cls}"><div class="section-head"><div><h3>Add study</h3></div></div><form data-session-form="${pillar}"><div class="fields"><div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div><div class="field"><label>Subject</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div></div><div class="fields" style="margin-top:10px"><div class="field"><label>Hours</label><input name="hours" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" required></div><div class="field"><label>Note</label><input name="note" placeholder="Optional"></div></div><div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,2.5,3,4].map(h=>`<button type="button" class="chip ${cls}" data-fill-hours="${h}">${h}h</button>`).join('')}</div><div style="display:flex;gap:8px;align-items:center;margin-top:9px"><button type="submit" class="btn pillar-btn ${cls}">Add</button><span class="tiny" data-session-msg></span></div></form></div><div class="card"><div class="section-head"><div><h3>Totals</h3></div></div><div class="grid g3"><div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div><div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div><div class="metric"><span class="label">All time</span><b>${fmt(all)}h</b></div></div></div></div>${extra}<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Recent</h3></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Subject</th><th>Hours</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function performancePillarHtml(pillar){
   const cls=pillarClass[pillar],week=weekDates(),month=monthDates();
@@ -1207,11 +1222,11 @@ function performancePillarHtml(pillar){
         <div class="field"><label>Type</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div>
       </div>
       <div class="fields" style="margin-top:8px">
-        <div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div>
+        <div class="field"><label>Hours</label><input name="hours" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" required></div>
         <div class="field"><label>Note</label><input name="note" placeholder="Optional"></div>
       </div>
       <div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-fill-hours="${h}">${h}h</button>`).join('')}</div>
-      <button class="btn pillar-btn ${cls}" style="margin-top:9px">Add</button>
+      <button type="submit" class="btn pillar-btn ${cls}" style="margin-top:9px">Add</button>
     </form>
     <div class="mini-history">
       ${recent.length?recent.map(x=>`<div class="row"><div class="grow"><b>${escapeHtml(x.type)}</b><div class="tiny">${prettyDate(x.date)}${x.note?' · '+escapeHtml(x.note):''}</div></div><b>${fmt(x.hours)}h</b><button class="btn small ghost" data-del-session="${pillar}|${x.id}">×</button></div>`).join(''):'<div class="empty">No sessions yet.</div>'}
@@ -1222,12 +1237,15 @@ function performancePillarHtml(pillar){
 function bindSessionControls(){
   document.querySelectorAll('[data-session-form]').forEach(form=>form.addEventListener('submit',e=>{
     e.preventDefault();
-    const p=form.dataset.sessionForm,fd=new FormData(form);
-    if(addSession(p,fd.get('date'),fd.get('type'),fd.get('hours'),fd.get('note'))){
+    const p=form.dataset.sessionForm,fd=new FormData(form),msg=form.querySelector('[data-session-msg]');
+    const h=parseHours(fd.get('hours'));
+    if(!fd.get('date')){if(msg)msg.textContent='Choose a date.';return}
+    if(h===null){if(msg)msg.textContent='Hours must be 0.25–24.';form.querySelector('[name="hours"]')?.focus();return}
+    if(addSession(p,fd.get('date'),fd.get('type'),h,fd.get('note'))){
       form.querySelector('[name="hours"]').value='';
       form.querySelector('[name="note"]').value='';
       renderAll();
-    }
+    }else if(msg)msg.textContent='Could not save.';
   }));
   document.querySelectorAll('[data-fill-hours]').forEach(b=>b.onclick=()=>{
     const form=b.closest('form');
