@@ -372,7 +372,7 @@ body{
 
 <section class="view" id="today">
   <div class="card">
-    <div class="section-head"><div><h3>Date</h3></div><span id="daySaveStatus" class="tiny">Not confirmed</span></div>
+    <div class="section-head"><div><h3>Date</h3></div></div>
     <div class="date-toolbar">
       <button class="btn date-nav-btn" id="prevDateBtn" aria-label="Previous day">←</button>
       <div class="field"><label>Date</label><input id="activeDate" type="date"></div>
@@ -385,7 +385,7 @@ body{
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Called off</h3><p>College, course, or training cancelled by them.</p></div></div>
+    <div class="section-head"><div><h3>Called off</h3><p>College or German course cancelled by them.</p></div></div>
     <div id="exceptionGrid" class="exception-grid"></div>
   </div>
 
@@ -404,17 +404,12 @@ body{
     <div id="selectedDateSessions" class="selected-sessions"></div>
   </div>
 
-  <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Done?</h3></div></div>
-    <button class="btn primary" id="confirmDay">Confirm day</button>
-    <details style="margin-top:10px"><summary>Change today's targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save</button></details>
-  </div>
 </section>
 
 <section class="view" id="study"><div id="studyPage"></div></section>
 
 <section class="view" id="calculations">
-  <div class="grid g5" id="calcHeadline"></div>
+  <div class="grid g3" id="calcHeadline"></div>
   <div class="grid g2" style="margin-top:12px">
     <div class="card"><div class="section-head"><div><h3>This week</h3></div></div><div id="calcCoverage"></div></div>
     <div class="card"><div class="section-head"><div><h3>By area</h3></div></div><div id="pillarForm"></div></div>
@@ -518,19 +513,11 @@ const attendanceSchedule={
     {id:'thu-german-course',pillar:'German',kind:'Course',label:'German A1',time:'19:30–22:00'}
   ]
 };
-const reference={
-  Saturday:{college:2,study:2,german:0,training:3,events:[['College','2 lectures · Computers + English · 09:00–13:00','college'],['Training','13:00–16:00','training'],['Study','18:00–20:00','study']]},
-  Sunday:{college:0,study:2,german:0,training:4,events:[['Study','10:00–12:00','study'],['Training','18:00–22:00','training']]},
-  Monday:{college:3,study:2,german:1,training:0,events:[['College','3 lectures · Accounting + Management + Statistics · 09:00–15:00','college'],['Study','16:30–18:30','study'],['German','Course attendance · 2.5h · 19:30–22:00','german']]},
-  Tuesday:{college:0,study:5,german:0,training:4,events:[['Study','10:00–16:00 · 5h actual','study'],['Training','18:00–22:00','training']]},
-  Wednesday:{college:0,study:4,german:0,training:4,events:[['Study','10:00–15:00 · 4h actual','study'],['Training','18:00–22:00','training']]},
-  Thursday:{college:2,study:0,german:1,training:3,events:[['Computers section','10:00–11:00','college'],['Accounting section','11:00–12:00','college'],['Training','13:30–16:30','training'],['German','Course attendance · 19:30–22:00','german']]},
-  Friday:{college:0,study:2,german:0,training:0,events:[['Study','10:00–12:00','study']]}
-};
-const weeklyTargets={College:7,Study:17,German:2,Training:18};
 const GERMAN_START='2026-10-12';
 const GERMAN_COURSE_WEEKLY_HOURS=5;
-const GERMAN_STUDY_WEEKLY_TARGET=4;
+const GERMAN_STUDY_WEEKLY_HOURS=4;
+const TRAINING_ATTENDANCE_ID='training-session';
+const SCORE_PILLARS=['College','German','Training'];
 let data=loadData();
 let activeDate=iso();
 let cloudUser=null;
@@ -586,28 +573,24 @@ async function loadOwnerRole(){
   if(isOwner)loadAdmin();
 }
 function telemetryPayload(){
-  const ds=dateRange(iso(),28);
-  const scores=scoreSet();
-  const confirmed=ds.filter(d=>data.days[d]?.confirmed).length;
-  const attendancePct=p=>{
-    const expected=ds.reduce((s,d)=>s+target(d,p),0);
-    const attended=ds.reduce((s,d)=>s+actualValue(d,p),0);
-    return expected?clamp(attended/expected*100,0,100):null;
-  };
+  const ds=dateRange(iso(),28),scores=scoreSet();
+  const college=attendanceCounts(ds,'College'),german=attendanceCounts(ds,'German'),training=attendanceCounts(ds,'Training');
   return {
     user_id:cloudUser?.id,
     updated_at:new Date().toISOString(),
-    confirmed_days_28d:confirmed,
-    completion:scores.Completion,
-    consistency:scores.Consistency,
+    confirmed_days_28d:0,
+    completion:null,
+    attendance_score:scores.Attendance,
+    consistency:null,
     growth:scores.Growth,
     progress:scores.Progress,
-    confidence:scores.Confidence,
-    college_attendance_pct:attendancePct('College'),
-    study_hours_28d:totalActual(ds,'Study'),
-    german_attendance_pct:attendancePct('German'),
+    confidence:null,
+    college_attendance_pct:college.rate,
+    study_hours_28d:totalHours(ds,'Study'),
+    german_attendance_pct:german.rate,
     german_study_hours_28d:totalGermanStudyHours(ds),
-    training_hours_28d:totalActual(ds,'Training')
+    training_attendance_pct:training.rate,
+    training_hours_28d:0
   };
 }
 function queueTelemetry(){
@@ -629,55 +612,59 @@ async function loadAdmin(){
   const box=document.getElementById('adminUsers'),summary=document.getElementById('adminSummary');
   if(box)box.innerHTML='<div class="empty">Loading…</div>';
   const {data:rows,error}=await cloud.from('performance_telemetry')
-    .select('user_key,updated_at,confirmed_days_28d,completion,consistency,growth,progress,confidence,college_attendance_pct,study_hours_28d,german_attendance_pct,german_study_hours_28d,training_hours_28d')
+    .select('user_key,updated_at,attendance_score,growth,progress,college_attendance_pct,study_hours_28d,german_attendance_pct,german_study_hours_28d,training_attendance_pct')
     .order('updated_at',{ascending:false});
   if(error){if(box)box.innerHTML='<div class="empty">Could not load analytics.</div>';return}
   const todayIso=iso();
-  const {data:usageRows}=await cloud.from('ai_daily_usage')
-    .select('usage_date,request_count')
-    .eq('usage_date',todayIso);
+  const {data:usageRows}=await cloud.from('ai_daily_usage').select('usage_date,request_count').eq('usage_date',todayIso);
   const aiToday=(usageRows||[]).reduce((s,r)=>s+Number(r.request_count||0),0);
   const now=Date.now(),week=7*86400000;
   const active7=(rows||[]).filter(r=>now-Date.parse(r.updated_at)<=week).length;
-  const completions=(rows||[]).map(r=>Number(r.completion)).filter(Number.isFinite);
-  const avgCompletion=completions.length?avg(completions):null;
+  const attendanceVals=(rows||[]).map(r=>Number(r.attendance_score)).filter(Number.isFinite);
+  const avgAttendance=attendanceVals.length?avg(attendanceVals):null;
   if(summary)summary.innerHTML=[
     ['Tracked users',(rows||[]).length],
     ['Active · 7d',active7],
-    ['Avg completion',avgCompletion===null?'—':Math.round(avgCompletion)+'%'],
+    ['Avg attendance',avgAttendance===null?'—':Math.round(avgAttendance)+'%'],
     ['AI requests · today',aiToday]
   ].map(([a,b])=>`<div class="admin-metric"><span>${a}</span><b>${b}</b></div>`).join('');
   if(box)box.innerHTML=(rows||[]).length?(rows||[]).map(r=>`<div class="admin-user">
-    <div class="admin-user-head"><div><b>User ${escapeHtml(r.user_key||'—')}</b><div class="tiny">Last active ${new Date(r.updated_at).toLocaleString()}</div></div><span class="badge">${r.confirmed_days_28d||0} confirmed days</span></div>
+    <div class="admin-user-head"><div><b>User ${escapeHtml(r.user_key||'—')}</b><div class="tiny">Last active ${new Date(r.updated_at).toLocaleString()}</div></div></div>
     <div class="admin-metrics">
-      <div class="admin-metric"><span>Completion</span><b>${pct(r.completion)}</b></div>
-      <div class="admin-metric"><span>Consistency</span><b>${pct(r.consistency)}</b></div>
+      <div class="admin-metric"><span>Attendance</span><b>${pct(r.attendance_score)}</b></div>
       <div class="admin-metric"><span>College</span><b>${pct(r.college_attendance_pct)}</b></div>
       <div class="admin-metric"><span>German course</span><b>${pct(r.german_attendance_pct)}</b></div>
+      <div class="admin-metric"><span>Training</span><b>${pct(r.training_attendance_pct)}</b></div>
+      <div class="admin-metric"><span>Study · 28d</span><b>${fmt(r.study_hours_28d)}h</b></div>
       <div class="admin-metric"><span>German study · 28d</span><b>${fmt(r.german_study_hours_28d)}h</b></div>
-      <div class="admin-metric"><span>BIS Study · 28d</span><b>${fmt(r.study_hours_28d)}h</b></div>
-      <div class="admin-metric"><span>Training · 28d</span><b>${fmt(r.training_hours_28d)}h</b></div>
-      <div class="admin-metric"><span>Progress</span><b>${pct(r.progress)}</b></div>
-      <div class="admin-metric"><span>Confidence</span><b>${pct(r.confidence)}</b></div>
+      <div class="admin-metric"><span>Growth</span><b>${r.growth===null||r.growth===undefined?'—':(Number(r.growth)>=0?'+':'')+fmt(r.growth,1)+' pts'}</b></div>
+      <div class="admin-metric"><span>Progress</span><b>${r.progress===null||r.progress===undefined?'—':(Number(r.progress)>=0?'+':'')+fmt(r.progress,1)+' pts'}</b></div>
     </div>
   </div>`).join(''):'<div class="empty">No telemetry yet.</div>';
 }
 function assistantContext(){
-  const wc=weekCoverage(),scores=scoreSet(),ds=dateRange(iso(),28);
+  const ds=dateRange(iso(),28),scores=scoreSet(),week=weekDates();
   const attendance=scheduledAttendance(activeDate).map(x=>({pillar:x.pillar,label:x.label,kind:x.kind,status:attendanceStatus(activeDate,x.id)||'unlogged'}));
+  attendance.push({pillar:'Training',label:'Training',kind:'Attendance',status:trainingAttendanceStatus(activeDate)||'unlogged'});
   const recentStudy=[...(data.sessions.Study||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12).map(x=>({date:x.date,subject:x.type,hours:x.hours}));
-  const recentTraining=[...(data.sessions.Training||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(x=>({date:x.date,type:x.type,hours:x.hours}));
   return {
     selectedDate:activeDate,
     selectedDay:dayName(activeDate),
     scores,
-    thisWeek:wc,
-    last28Days:{studyHours:totalActual(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalActual(ds,'Training')},
+    attendanceScoring:{
+      rule:'Only College attendance, German course attendance, and Training attendance affect scores. Called-off items are excluded. Study hours and German self-study hours are informational only.',
+      thisWeek:{
+        college:attendanceCounts(week,'College'),
+        germanCourse:attendanceCounts(week,'German'),
+        training:attendanceCounts(week,'Training')
+      }
+    },
+    last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds)},
     selectedDateAttendance:attendance,
     selectedDateExceptions:data.days?.[activeDate]?.exceptions||{},
     recentStudy,
-    recentTraining,
-    german:{starts:GERMAN_START,courseHoursPerWeek:GERMAN_COURSE_WEEKLY_HOURS,studyHoursPerWeek:GERMAN_STUDY_WEEKLY_TARGET},note:'Diary/Entries text and session notes are intentionally excluded from automatic AI context.'
+    german:{starts:GERMAN_START,courseHoursPerWeek:GERMAN_COURSE_WEEKLY_HOURS,studyHoursPerWeek:GERMAN_STUDY_WEEKLY_HOURS},
+    note:'Diary/Entries text and session notes are intentionally excluded from automatic AI context.'
   };
 }
 function renderAssistant(){
@@ -831,10 +818,6 @@ function fmt(x,d=1){return Number.isFinite(Number(x))?Number(x).toFixed(d).repla
 function uid(prefix='x'){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function escapeHtml(s=''){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
 function germanActive(date){return String(date)>=GERMAN_START}
-function referenceTarget(date,pillar){
-  if(pillar==='German'&&!germanActive(date))return 0;
-  return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0);
-}
 function externalException(date,pillar){return data.days?.[date]?.exceptions?.[pillar]||null}
 function isExternallyCancelled(date,pillar){return !!externalException(date,pillar)}
 function setExternalException(date,pillar,active,reason='Externally cancelled'){
@@ -844,16 +827,6 @@ function setExternalException(date,pillar,active,reason='Externally cancelled'){
   else delete data.days[date].exceptions[pillar];
   if(!Object.keys(data.days[date].exceptions).length)delete data.days[date].exceptions;
   save();
-}
-function target(date,pillar){
-  if(pillar==='German'&&!germanActive(date))return 0;
-  if(isExternallyCancelled(date,pillar))return 0;
-  const override=data.days[date]?.overrides?.[pillar];
-  if(override!==undefined&&override!==null&&override!=='')return Number(override)||0;
-  if(pillar==='College'||pillar==='German'){
-    return scheduledAttendance(date,pillar).filter(x=>attendanceStatus(date,x.id)!=='cancelled').length;
-  }
-  return referenceTarget(date,pillar);
 }
 function sessionHours(date,pillar){return data.sessions[pillar].filter(x=>x.date===date).reduce((s,x)=>s+Number(x.hours||0),0)}
 function germanStudyHours(date){
@@ -878,82 +851,116 @@ function setAttendance(date,id,status){
   if(!Object.keys(data.attendance[date]).length)delete data.attendance[date];
   save();
 }
-function cancelledAttendanceCount(date,pillar){
-  return scheduledAttendance(date,pillar).filter(x=>attendanceStatus(date,x.id)==='cancelled').length;
+function trainingAttendanceStatus(date){
+  if(isExternallyCancelled(date,'Training'))return 'cancelled';
+  return attendanceStatus(date,TRAINING_ATTENDANCE_ID);
 }
-function attendanceActual(date,pillar){
-  return scheduledAttendance(date,pillar).filter(x=>attendanceStatus(date,x.id)==='present').length;
+function setTrainingAttendance(date,status){
+  if(status==='cancelled'){
+    setExternalException(date,'Training',true,'Training called off');
+    setAttendance(date,TRAINING_ATTENDANCE_ID,null);
+    return;
+  }
+  if(isExternallyCancelled(date,'Training'))setExternalException(date,'Training',false);
+  setAttendance(date,TRAINING_ATTENDANCE_ID,status);
 }
-function actualValue(date,pillar){
-  return (pillar==='College'||pillar==='German')?attendanceActual(date,pillar):sessionHours(date,pillar);
+function attendanceCounts(dates,pillar){
+  const out={present:0,absent:0,cancelled:0,unlogged:0,scheduled:0,tracked:0,rate:null};
+  dates.forEach(date=>{
+    if(pillar==='Training'){
+      const status=trainingAttendanceStatus(date);
+      if(status==='present'){out.present++;out.scheduled++}
+      else if(status==='absent'){out.absent++;out.scheduled++}
+      else if(status==='cancelled')out.cancelled++;
+      return;
+    }
+    const items=scheduledAttendance(date,pillar);
+    if(isExternallyCancelled(date,pillar)){out.cancelled+=items.length;return}
+    items.forEach(x=>{
+      const status=attendanceStatus(date,x.id);
+      if(status==='cancelled'){out.cancelled++;return}
+      out.scheduled++;
+      if(status==='present')out.present++;
+      else if(status==='absent')out.absent++;
+      else out.unlogged++;
+    });
+  });
+  out.tracked=out.present+out.absent;
+  out.rate=out.tracked?out.present/out.tracked*100:null;
+  return out;
 }
-function totalActual(dates,pillar){return dates.reduce((s,d)=>s+actualValue(d,pillar),0)}
-function unitName(pillar){return (pillar==='College'||pillar==='German')?'attendance':'hours'}
-function shortUnit(pillar){return (pillar==='College'||pillar==='German')?'att.':'h'}
-function actualDisplay(value,pillar){return (pillar==='College'||pillar==='German')?`${fmt(value,0)} attended`:`${fmt(value)}h`}
-function hasTarget(date){return PILLARS.some(p=>target(date,p)>0)}
-function completionPart(date,pillar){const t=target(date,pillar);if(t<=0)return null;return clamp(actualValue(date,pillar)/t,0,1)*100}
-function dailyScore(date){if(!data.days[date]?.confirmed)return null;const parts=PILLARS.map(p=>completionPart(date,p)).filter(x=>x!==null);return parts.length?avg(parts):null}
-function confirmedScores(dates){return dates.map(d=>dailyScore(d)).filter(x=>x!==null)}
-function recentWindowScores(n=14,end=iso()){return confirmedScores(dateRange(end,n).filter(hasTarget))}
-function consistency(){const scores=recentWindowScores(28);if(scores.length<5)return null;const mean=avg(scores),stability=Math.exp(-sd(scores)/28);return clamp(mean*(0.7+0.3*stability),0,100)}
-function growth(){const recent=recentWindowScores(14),prior=recentWindowScores(14,addDays(iso(),-14));if(recent.length<4||prior.length<4)return null;const a=avg(recent),b=avg(prior);if(b===0)return a>0?100:0;return clamp((a-b)/b*100,-100,100)}
-function baselineScore(){const dates=Object.keys(data.days).filter(d=>data.days[d]?.confirmed&&hasTarget(d)).sort();const vals=dates.map(d=>dailyScore(d)).filter(x=>x!==null);if(vals.length<5)return null;return avg(vals.slice(0,Math.min(14,vals.length)))}
-function recentScore(){const vals=recentWindowScores(14);return vals.length>=4?avg(vals):null}
-function progress(){const b=baselineScore(),r=recentScore();if(b===null||r===null||b>=99.5)return null;return clamp((r-b)/(100-b)*100,-100,100)}
-function confidence(){const targetDates=dateRange(iso(),28).filter(hasTarget),logged=targetDates.filter(d=>data.days[d]?.confirmed).length;if(!targetDates.length)return 0;const coverage=logged/targetDates.length,maturity=Math.min(1,Object.values(data.days).filter(x=>x?.confirmed).length/28);return 100*(0.75*coverage+0.25*maturity)}
-function scoreSet(){return {Completion:dailyScore(iso()),Consistency:consistency(),Growth:growth(),Progress:progress(),Confidence:confidence()}}
-function germanWeekCoverage(ds=weekDates()){
-  const active=ds.some(germanActive);
-  const courseTarget=ds.reduce((s,d)=>s+target(d,'German'),0);
-  const courseActual=ds.reduce((s,d)=>s+attendanceActual(d,'German'),0);
-  const studyTarget=active?GERMAN_STUDY_WEEKLY_TARGET:0;
-  const studyActual=totalGermanStudyHours(ds);
-  const parts=[];
-  if(courseTarget>0)parts.push(clamp(courseActual/courseTarget*100,0,100));
-  if(studyTarget>0)parts.push(clamp(studyActual/studyTarget*100,0,100));
+function attendanceActual(date,pillar){return attendanceCounts([date],pillar).present}
+function cancelledAttendanceCount(date,pillar){return attendanceCounts([date],pillar).cancelled}
+function categoryAttendanceRate(dates,pillar){return attendanceCounts(dates,pillar).rate}
+function attendanceScore(dates){
+  const rates=SCORE_PILLARS.map(p=>categoryAttendanceRate(dates,p)).filter(v=>v!==null);
+  return rates.length?avg(rates):null;
+}
+function growth(){
+  const recent=attendanceScore(dateRange(iso(),7));
+  const prior=attendanceScore(dateRange(addDays(iso(),-7),7));
+  return recent===null||prior===null?null:clamp(recent-prior,-100,100);
+}
+function firstTrackedAttendanceDate(){
+  return Object.keys(data.attendance||{}).sort().find(date=>{
+    const statuses=Object.values(data.attendance[date]||{});
+    return statuses.some(s=>s==='present'||s==='absent');
+  })||null;
+}
+function baselineAttendance(){
+  const first=firstTrackedAttendanceDate();
+  if(!first)return null;
+  const baselineEnd=addDays(first,13);
+  if(iso()<baselineEnd)return null;
+  return attendanceScore(dateRange(baselineEnd,14));
+}
+function progress(){
+  const baseline=baselineAttendance(),recent=attendanceScore(dateRange(iso(),14));
+  return baseline===null||recent===null?null:clamp(recent-baseline,-100,100);
+}
+function scoreSet(){
   return {
-    actual:0,target:0,hasTarget:parts.length>0,
-    pct:parts.length?avg(parts):null,
-    detail:active
-      ? `${fmt(courseActual,0)} / ${fmt(courseTarget,0)} course · ${fmt(studyActual)} / ${fmt(studyTarget)}h study`
-      : 'Starts Oct 12'
+    Attendance:attendanceScore(dateRange(iso(),28)),
+    Growth:growth(),
+    Progress:progress()
   };
 }
-function weekCoverage(){
-  const ds=weekDates(),out={};
-  PILLARS.forEach(p=>{
-    if(p==='German'){out[p]=germanWeekCoverage(ds);return}
-    const actual=totalActual(ds,p),targetSum=ds.reduce((s,d)=>s+target(d,p),0);
-    out[p]={actual,target:targetSum,hasTarget:targetSum>0,pct:targetSum?clamp(actual/targetSum*100,0,100):null};
-  });
-  return out;
+function attendanceRow(name,x,cls){
+  const main=x.tracked?`${x.present}/${x.tracked} attended · ${Math.round(x.rate)}%`:x.cancelled&&!x.unlogged?'Called off':'—';
+  const extra=x.unlogged?` · ${x.unlogged} unlogged`:'';
+  return `<div class="row ${cls}"><div class="grow"><b>${name}</b></div><b>${main}${extra}</b></div>`;
+}
+function summaryHtml(dates){
+  const college=attendanceCounts(dates,'College'),german=attendanceCounts(dates,'German'),training=attendanceCounts(dates,'Training');
+  const study=totalHours(dates,'Study'),germanStudy=totalGermanStudyHours(dates);
+  return [
+    attendanceRow('College',college,'college'),
+    attendanceRow('German course',german,'german'),
+    attendanceRow('Training',training,'training'),
+    `<div class="row study"><div class="grow"><b>Study</b><div class="tiny">not scored</div></div><b>${fmt(study)}h</b></div>`,
+    `<div class="row german"><div class="grow"><b>German study</b><div class="tiny">not scored</div></div><b>${germanActive(dates[dates.length-1]||iso())?fmt(germanStudy)+'h':'Starts Oct 12'}</b></div>`
+  ].join('');
 }
 function daySummary(date){
   const bits=[];
-  PILLARS.forEach(p=>{
-    if(isExternallyCancelled(date,p)){bits.push(`${p} cancelled externally`);return}
-    const a=actualValue(date,p),t=target(date,p),cancelled=(p==='College'||p==='German')?cancelledAttendanceCount(date,p):0;
-    if(a>0)bits.push((p==='College'||p==='German')?`${p} ${fmt(a,0)}/${fmt(t,0)} attended`:`${p} ${fmt(a)}h`);
-    if(cancelled>0)bits.push(`${p} ${cancelled} cancelled`);
-  });
+  const college=attendanceCounts([date],'College'),german=attendanceCounts([date],'German'),training=attendanceCounts([date],'Training');
+  if(college.tracked)bits.push(`College ${college.present}/${college.tracked}`);
+  if(german.tracked)bits.push(`German ${german.present}/${german.tracked}`);
+  if(training.tracked)bits.push(`Training ${training.present?'attended':'missed'}`);
+  if(isExternallyCancelled(date,'College'))bits.push('College called off');
+  if(isExternallyCancelled(date,'German'))bits.push('German called off');
+  if(training.cancelled)bits.push('Training called off');
+  const study=sessionHours(date,'Study'),gStudy=germanStudyHours(date);
+  if(study)bits.push(`Study ${fmt(study)}h`);
+  if(gStudy)bits.push(`German study ${fmt(gStudy)}h`);
   const notes=data.diary.filter(x=>x.date===date).length;
   if(notes)bits.push(`${notes} entr${notes===1?'y':'ies'}`);
   return bits;
 }
-function pillarRecentCompletion(pillar){
-  if(pillar==='German'){
-    if(!germanActive(iso()))return null;
-    const x=germanWeekCoverage(weekDates());
-    return x.hasTarget?x.pct:null;
-  }
-  const dates=dateRange(iso(),28).filter(d=>target(d,pillar)>0&&data.days[d]?.confirmed);
-  const vals=dates.map(d=>completionPart(d,pillar)).filter(x=>x!==null);
-  return vals.length>=2?avg(vals):null;
-}
 function addSession(pillar,date,type,hours,note=''){
   const h=Number(hours);
   if(!date||!Number.isFinite(h)||h<=0)return false;
+  if(!['Study','German'].includes(pillar))return false;
   if(pillar==='German'&&!germanActive(date))return false;
   data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});
   save();return true;
@@ -979,46 +986,28 @@ function setView(id){
   if(id==='admin'&&isOwner)loadAdmin();
   window.scrollTo({top:0,behavior:'smooth'});
 }
-function scoreCard(label,value,desc){let shown='—';if(value!==null&&value!==undefined){if(label==='Growth')shown=(value>=0?'+':'')+fmt(value,1)+'%';else if(label==='Progress')shown=(value>=0?'+':'')+fmt(value,0)+'%';else shown=fmt(value,0)}return `<div class="card score-card score-${label.toLowerCase()}"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`}
-function coverageHtml(items){return PILLARS.map(p=>{
-  const x=items[p]||{},pct=x.pct??0;
-  const units=x.detail||(p==='College'||p==='German'
-    ?`${fmt(x.actual,0)} / ${fmt(x.target,0)} attended`
-    :`${fmt(x.actual)} / ${fmt(x.target)}h`);
-  const has=x.hasTarget!==undefined?x.hasTarget:!!x.target;
-  return `<div class="row ${pillarClass[p]}"><div class="grow"><div class="progress-meta"><b>${p}</b><span class="tiny">${units}</span></div><div class="progress ${pillarClass[p]}"><span style="width:${pct}%"></span></div></div><b>${has?Math.round(pct)+'%':'—'}</b></div>`;
-}).join('')}
+function scoreCard(label,value,desc){
+  let shown='—';
+  if(value!==null&&value!==undefined){
+    shown=label==='Attendance'?fmt(value,0)+'%':(value>=0?'+':'')+fmt(value,1)+' pts';
+  }
+  return `<div class="card score-card score-${label.toLowerCase()}"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`;
+}
 function renderHeadline(){
-  const s=scoreSet();
-  const confirmedCount=Object.keys(data.days).filter(d=>data.days[d]?.confirmed&&hasTarget(d)).length;
-  const progressText=s.Progress===null?(confirmedCount<5?`needs ${5-confirmedCount} more confirmed day${5-confirmedCount===1?'':'s'}`:'needs more recent data'):'improvement';
+  const s=scoreSet(),first=firstTrackedAttendanceDate();
+  const progressDesc=s.Progress===null?(first?'building first 14-day baseline':'needs attendance data'):'vs your starting attendance';
   const html=[
-    scoreCard('Completion',s.Completion,'today'),
-    scoreCard('Consistency',s.Consistency,'staying on track'),
-    scoreCard('Growth',s.Growth,'recent change'),
-    scoreCard('Progress',s.Progress,progressText),
-    scoreCard('Confidence',s.Confidence,'enough data?')
+    scoreCard('Attendance',s.Attendance,'last 28 days'),
+    scoreCard('Growth',s.Growth,'last 7d vs previous 7d'),
+    scoreCard('Progress',s.Progress,progressDesc)
   ].join('');
   const h=document.getElementById('headlineScores'),ch=document.getElementById('calcHeadline');
   if(h)h.innerHTML=html;
   if(ch)ch.innerHTML=html;
 }
 function renderDashboard(){
-  document.getElementById('weekCoverage').innerHTML=coverageHtml(weekCoverage());
-  const today={};
-  PILLARS.forEach(p=>{
-    if(p==='German'){
-      const t=target(iso(),'German'),a=attendanceActual(iso(),'German'),study=germanStudyHours(iso());
-      today[p]={
-        actual:a,target:t,hasTarget:t>0,pct:t?clamp(a/t*100,0,100):null,
-        detail:germanActive(iso())?`${fmt(a,0)} / ${fmt(t,0)} course · ${fmt(study)}h study`:'Starts Oct 12'
-      };
-      return;
-    }
-    const t=target(iso(),p),a=actualValue(iso(),p);
-    today[p]={actual:a,target:t,hasTarget:t>0,pct:t?clamp(a/t*100,0,100):null};
-  });
-  document.getElementById('todayCoverage').innerHTML=coverageHtml(today);
+  document.getElementById('weekCoverage').innerHTML=summaryHtml(weekDates());
+  document.getElementById('todayCoverage').innerHTML=summaryHtml([iso()]);
 }
 function quickTypeOptions(pillar,date){
   if(pillar==='Study')return subjects.filter(x=>x!=='Custom');
@@ -1029,31 +1018,22 @@ function quickTypeOptions(pillar,date){
 function renderToday(){
   document.getElementById('activeDate').value=activeDate;
   document.getElementById('activeDayName').value=dayName(activeDate);
-  document.getElementById('daySaveStatus').textContent=data.days[activeDate]?.confirmed?'Confirmed':'Not confirmed';
 
   const jumpDates=Array.from({length:7},(_,i)=>addDays(activeDate,i-3));
   document.getElementById('dateJumps').innerHTML=jumpDates.map(d=>`<button type="button" class="date-chip ${d===activeDate?'active':''}" data-date-jump="${d}">${d===iso()?'Today':parseDate(d).toLocaleDateString('en-US',{weekday:'short',day:'numeric'})}</button>`).join('');
   document.querySelectorAll('[data-date-jump]').forEach(b=>b.onclick=()=>{activeDate=b.dataset.dateJump;renderToday()});
 
-  document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{
-    const exc=isExternallyCancelled(activeDate,p);
-    if(exc)return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>Excused</b><div class="tiny">Called off · does not count</div></div>`;
-    if(p==='German'){
-      if(!germanActive(activeDate))return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>Starts Oct 12</b><div class="tiny">5h course + 4h study per week from Oct 12</div></div>`;
-      const att=attendanceActual(activeDate,'German'),attTarget=target(activeDate,'German'),study=germanStudyHours(activeDate),cancelled=cancelledAttendanceCount(activeDate,'German');
-      const ref=attTarget?`${fmt(att,0)} / ${fmt(attTarget,0)} course attendance · weekly study target 4h`:`German study ${fmt(study)}h today · weekly target 4h`;
-      return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${fmt(att,0)} attended · ${fmt(study)}h study</b><div class="tiny">${ref}${cancelled?' · '+cancelled+' class cancelled':''}</div></div>`;
-    }
-    const t=target(activeDate,p),a=actualValue(activeDate,p),pct=t?clamp(a/t*100,0,100):null,cancelled=p==='College'?cancelledAttendanceCount(activeDate,p):0;
-    const shown=p==='College'?`${fmt(a,0)} attended`:`${fmt(a)}h`;
-    const ref=t?(p==='College'?`reference ${fmt(t,0)} attendance · ${Math.round(pct)}%`:`reference ${fmt(t)}h · ${Math.round(pct)}%`):'no reference target';
-    return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${shown}</b><div class="tiny">${ref}${cancelled?' · '+cancelled+' class cancelled':''}</div></div>`;
-  }).join('');
+  const college=attendanceCounts([activeDate],'College'),german=attendanceCounts([activeDate],'German'),training=attendanceCounts([activeDate],'Training');
+  document.getElementById('todayPillars').innerHTML=[
+    `<div class="pillar-mini college"><div class="name"><span class="dot"></span>College</div><b>${isExternallyCancelled(activeDate,'College')?'Called off':college.tracked?college.present+'/'+college.tracked+' attended':college.scheduled?college.unlogged+' unlogged':'No college'}</b></div>`,
+    `<div class="pillar-mini study"><div class="name"><span class="dot"></span>Study</div><b>${fmt(sessionHours(activeDate,'Study'))}h</b><div class="tiny">not scored</div></div>`,
+    `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${!germanActive(activeDate)?'Starts Oct 12':isExternallyCancelled(activeDate,'German')?'Course called off':german.tracked?german.present+'/'+german.tracked+' course':german.scheduled?german.unlogged+' course unlogged':'No course'}</b><div class="tiny">${germanActive(activeDate)?fmt(germanStudyHours(activeDate))+'h study · not scored':''}</div></div>`,
+    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${trainingAttendanceStatus(activeDate)==='present'?'Attended':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b></div>`
+  ].join('');
 
   const exceptionCandidates=[
     {pillar:'College',show:scheduledAttendance(activeDate,'College').length>0,label:'College',why:'Institution/day called off'},
-    {pillar:'German',show:scheduledAttendance(activeDate,'German').length>0,label:'German course',why:'Teacher/course called off'},
-    {pillar:'Training',show:referenceTarget(activeDate,'Training')>0,label:'Training',why:'Coach/gym called off'}
+    {pillar:'German',show:scheduledAttendance(activeDate,'German').length>0,label:'German course',why:'Teacher/course called off'}
   ].filter(x=>x.show);
   document.getElementById('exceptionGrid').innerHTML=exceptionCandidates.length?exceptionCandidates.map(x=>{
     const active=isExternallyCancelled(activeDate,x.pillar);
@@ -1061,7 +1041,7 @@ function renderToday(){
       <b>${x.label}</b><div class="tiny">${active?'Does not count':x.why}</div>
       <button class="btn small ${active?'ghost':'danger'}" data-exception="${x.pillar}|${active?'clear':'set'}">${active?'Clear cancellation':'Mark called off'}</button>
     </div>`;
-  }).join(''):'<div class="empty">No College, German course, or Training commitment is scheduled on this date.</div>';
+  }).join(''):'<div class="empty">Nothing scheduled here to call off.</div>';
   document.querySelectorAll('[data-exception]').forEach(b=>b.onclick=()=>{
     const [pillar,action]=b.dataset.exception.split('|');
     setExternalException(activeDate,pillar,action==='set');
@@ -1069,16 +1049,16 @@ function renderToday(){
   });
 
   const attendanceItems=scheduledAttendance(activeDate);
-  document.getElementById('attendanceGrid').innerHTML=attendanceItems.length?attendanceItems.map(x=>{
+  const scheduledHtml=attendanceItems.map(x=>{
     const whole=isExternallyCancelled(activeDate,x.pillar);
     const status=whole?'cancelled':attendanceStatus(activeDate,x.id);
-    const statusText=whole?'Called off · does not count':status==='present'?'Attended':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged';
+    const statusText=whole?'Called off':status==='present'?'Attended':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged';
     const actions=whole
       ? '<div class="callout" style="margin-top:9px">Called off. Clear it above if that changes.</div>'
       : `<div class="attendance-actions">
           <button type="button" class="attend-yes" data-attendance="${x.id}|present">Attended</button>
           <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
-          <button type="button" class="attend-cancel" data-attendance="${x.id}|cancelled">Cancelled</button>
+          <button type="button" class="attend-cancel" data-attendance="${x.id}|cancelled">Called off</button>
           <button type="button" class="attend-clear" data-attendance="${x.id}|clear" aria-label="Clear attendance">×</button>
         </div>`;
     return `<div class="attendance-card ${pillarClass[x.pillar]}" data-status="${status||''}">
@@ -1087,21 +1067,38 @@ function renderToday(){
       ${actions}
       <div class="attendance-status ${status||'unlogged'}">${statusText}</div>
     </div>`;
-  }).join(''):`<div class="empty">${!germanActive(activeDate)&&['Monday','Thursday'].includes(dayName(activeDate))?'German starts Oct 12. No German attendance is expected yet.':'No College or German attendance scheduled on this date.'}</div>`;
+  }).join('');
 
+  const ts=trainingAttendanceStatus(activeDate);
+  const trainingHtml=`<div class="attendance-card training" data-status="${ts||''}">
+    <h4>Training</h4>
+    <div class="attendance-meta">Attendance only</div>
+    <div class="attendance-actions">
+      <button type="button" class="attend-yes" data-training-attendance="present">Attended</button>
+      <button type="button" class="attend-no" data-training-attendance="absent">Missed</button>
+      <button type="button" class="attend-cancel" data-training-attendance="cancelled">Called off</button>
+      <button type="button" class="attend-clear" data-training-attendance="clear" aria-label="Clear attendance">×</button>
+    </div>
+    <div class="attendance-status ${ts||'unlogged'}">${ts==='present'?'Attended':ts==='absent'?'Missed':ts==='cancelled'?'Called off':'Not logged'}</div>
+  </div>`;
+
+  document.getElementById('attendanceGrid').innerHTML=scheduledHtml+trainingHtml;
   document.querySelectorAll('[data-attendance]').forEach(b=>b.onclick=()=>{
     const [id,status]=b.dataset.attendance.split('|');
     setAttendance(activeDate,id,status==='clear'?null:status);
     renderAll();
   });
+  document.querySelectorAll('[data-training-attendance]').forEach(b=>b.onclick=()=>{
+    const status=b.dataset.trainingAttendance;
+    setTrainingAttendance(activeDate,status==='clear'?null:status);
+    renderAll();
+  });
 
-  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
+  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[])];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
-    if(p==='Training'&&isExternallyCancelled(activeDate,'Training'))return `<div class="quick-card training"><h4>Training</h4><div class="tiny">Called off · not expected and not scored on this date.</div></div>`;
-    const sub=p==='German'?'4h/week':(target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target today');
-    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`;
+    const sub=p==='German'?'German self-study · not scored':'Study time · not scored';
+    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`;
   }).join('');
-
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
     const [p,h]=b.dataset.quickHours.split('|');
     document.getElementById('quickHours'+p).value=h;
@@ -1115,7 +1112,7 @@ function renderToday(){
     }
   });
 
-  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
+  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[])];
   const sessions=editablePillars.flatMap(p=>data.sessions[p]
     .filter(x=>x.date===activeDate&&(p!=='German'||String(x.type||'').toLowerCase()!=='course'))
     .map(x=>({...x,pillar:p})))
@@ -1126,7 +1123,7 @@ function renderToday(){
     if(!opts.includes(x.type))opts.unshift(x.type);
     return `<div class="session-edit-card ${pillarClass[x.pillar]}" data-session-card="${x.pillar}|${x.id}">
       <div class="session-edit-head">
-        <div><b>${x.pillar==='German'?'German study':x.pillar} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
+        <div><b>${x.pillar==='German'?'German study':'Study'} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
         <span class="badge">${fmt(x.hours)}h</span>
       </div>
       <details>
@@ -1143,7 +1140,7 @@ function renderToday(){
         </div>
       </details>
     </div>`;
-  }).join(''):'<div class="empty">No Study, German study, or Training hours logged on this date.</div>';
+  }).join(''):'<div class="empty">No study hours logged on this date.</div>';
 
   document.querySelectorAll('[data-save-session]').forEach(b=>b.onclick=()=>{
     const [p,id]=b.dataset.saveSession.split('|');
@@ -1165,11 +1162,6 @@ function renderToday(){
     data.sessions[p]=data.sessions[p].filter(x=>x.id!==id);
     save();renderAll();
   });
-
-  document.getElementById('overrideFields').innerHTML='<div class="callout" style="grid-column:1/-1">Called-off commitments do not count.</div>'+PILLARS.map(p=>{
-    const label=(p==='College'||p==='German')?`${p} attendance target`:`${p} target hours`;
-    return `<div class="field"><label>${label}</label><input data-override="${p}" type="number" min="0" step="${p==='College'||p==='German'?'1':'0.25'}" value="${target(activeDate,p)}"></div>`;
-  }).join('');
 }
 function renderEntries(){
   const q=(document.getElementById('diarySearch')?.value||'').trim().toLowerCase();
@@ -1254,12 +1246,19 @@ function renderTrackingPages(){
   bindSessionControls();
 }
 function renderCalculations(){
-  document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());
-  document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>{
-    const v=pillarRecentCompletion(p);
-    const label=p==='German'?'course + study':'recent';
-    return `<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">${label}</div></div><b>${v===null?'—':fmt(v,0)+'%'}</b></div>`;
-  }).join('');
+  const week=weekDates(),ds=dateRange(iso(),28);
+  document.getElementById('calcCoverage').innerHTML=summaryHtml(week);
+  const college=attendanceCounts(ds,'College'),german=attendanceCounts(ds,'German'),training=attendanceCounts(ds,'Training');
+  const studyAll=data.sessions.Study.reduce((s,x)=>s+Number(x.hours||0),0);
+  const germanStudyAll=data.sessions.German.filter(x=>String(x.type||'').toLowerCase()!=='course').reduce((s,x)=>s+Number(x.hours||0),0);
+  const rows=[
+    ['College',college.tracked?`${college.present}/${college.tracked} · ${Math.round(college.rate)}%`:college.unlogged?`${college.unlogged} unlogged`:'—','college'],
+    ['German course',german.tracked?`${german.present}/${german.tracked} · ${Math.round(german.rate)}%`:germanActive(iso())?(german.unlogged?`${german.unlogged} unlogged`:'—'):'Starts Oct 12','german'],
+    ['Training',training.tracked?`${training.present}/${training.tracked} · ${Math.round(training.rate)}%`:'—','training'],
+    ['Study',`${fmt(totalHours(ds,'Study'))}h · 28d / ${fmt(studyAll)}h all time`,'study'],
+    ['German study',germanActive(iso())?`${fmt(totalGermanStudyHours(ds))}h · 28d / ${fmt(germanStudyAll)}h all time`:'Starts Oct 12','german']
+  ];
+  document.getElementById('pillarForm').innerHTML=rows.map(([name,value,cls])=>`<div class="row ${cls}"><div class="grow"><b>${name}</b></div><b>${value}</b></div>`).join('');
 }
 function renderReference(){}
 function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderEntries();renderTrackingPages();renderCalculations();renderReference();renderAssistant()}
@@ -1272,16 +1271,6 @@ activeDateInput.addEventListener('change',e=>{activeDate=e.target.value||iso();r
 document.getElementById('prevDateBtn').addEventListener('click',()=>{activeDate=addDays(activeDate,-1);renderToday()});
 document.getElementById('nextDateBtn').addEventListener('click',()=>{activeDate=addDays(activeDate,1);renderToday()});
 document.getElementById('todayDateBtn').addEventListener('click',()=>{activeDate=iso();renderToday()});
-document.getElementById('confirmDay').addEventListener('click',()=>{
-  data.days[activeDate]={...(data.days[activeDate]||{}),confirmed:true,confirmedAt:new Date().toISOString()};
-  save();renderAll();
-});
-document.getElementById('saveOverrides').addEventListener('click',()=>{
-  const o={};
-  document.querySelectorAll('[data-override]').forEach(i=>o[i.dataset.override]=Number(i.value)||0);
-  data.days[activeDate]={...(data.days[activeDate]||{}),overrides:o};
-  save();renderAll();
-});
 
 // Entries
 document.getElementById('diaryDate').value=iso();
