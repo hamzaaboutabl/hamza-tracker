@@ -143,9 +143,116 @@ body{
 .entry-card p{white-space:pre-wrap;margin:8px 0 0}
 @media(max-width:1180px){.performance-grid{grid-template-columns:1fr}}
 
+
+/* v9: auth-first, mobile-first, Today owns editing */
+.auth-gate{
+  position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;
+  background:
+    radial-gradient(circle at 20% 10%,rgba(77,163,255,.15),transparent 28rem),
+    radial-gradient(circle at 85% 15%,rgba(169,140,255,.13),transparent 30rem),
+    #070b12;
+}
+.auth-gate.hidden{display:none}
+.auth-card{
+  width:min(420px,100%);border:1px solid #2a3d55;border-radius:22px;padding:24px;
+  background:linear-gradient(150deg,#111c2a,#0c131e);box-shadow:0 30px 80px rgba(0,0,0,.45)
+}
+.auth-mark{display:flex;align-items:center;gap:10px;margin-bottom:18px;font-weight:900;font-size:20px}
+.auth-mark span{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--study),var(--college));box-shadow:0 0 18px rgba(169,140,255,.65)}
+.auth-card h1{margin:0;font-size:28px;letter-spacing:-.03em}
+.auth-card p{margin:7px 0 18px;color:var(--muted)}
+.auth-card .btn{width:100%;min-height:48px;font-size:14px}
+.auth-status{margin-top:10px;text-align:center;color:var(--muted);font-size:11px}
+
+.mobile-system{display:none}
+.date-toolbar{display:grid;grid-template-columns:auto minmax(170px,1fr) auto auto;gap:8px;align-items:end}
+.date-nav-btn{min-width:44px;min-height:42px}
+.date-jumps{display:flex;gap:6px;overflow:auto;padding:2px 0 4px;scrollbar-width:none}
+.date-jumps::-webkit-scrollbar{display:none}
+.date-chip{flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--muted);border-radius:10px;padding:7px 9px;font-size:11px;font-weight:800}
+.date-chip.active{border-color:#55779d;background:#17283a;color:var(--text)}
+
+.selected-sessions{display:grid;gap:9px}
+.session-edit-card{
+  --pillar:#71849a;border:1px solid color-mix(in srgb,var(--pillar) 34%,var(--line));
+  border-radius:13px;padding:11px;background:color-mix(in srgb,var(--pillar) 7%,var(--panel2))
+}
+.session-edit-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.session-edit-head b{display:block}
+.session-edit-card details{margin-top:8px}
+.session-edit-card summary{color:var(--soft)}
+.session-edit-card .danger-link{color:#ff9bab}
+.system-account{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+@media(max-width:900px){
+  .side{display:none!important}
+  .app{display:block!important;min-height:100vh}
+  main{padding:0 12px calc(92px + env(safe-area-inset-bottom));max-width:none}
+  .head{
+    position:sticky;top:0;z-index:30;margin:0 -12px 12px;padding:10px 12px;
+    align-items:center;background:rgba(7,11,18,.9);backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(34,52,74,.78)
+  }
+  .head h1{font-size:20px}.head .sub,.top-date{display:none}
+  .mobile-system{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;padding:0}
+  .grid.g2,.grid.g3,.grid.g4,.quick-grid,.performance-grid,.fields{grid-template-columns:1fr!important}
+  #headlineScores,#calcHeadline{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px}
+  #headlineScores .card,#calcHeadline .card{padding:11px}
+  #headlineScores .metric b,#calcHeadline .metric b{font-size:20px}
+  .pillars{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px}
+  .pillar-mini{padding:10px}.pillar-mini b{font-size:17px}
+  .pillar-shortcuts{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px}
+  .pillar-shortcut{padding:10px 8px;font-size:11px}.pillar-shortcut .arrow{display:none}
+  .card{padding:13px;border-radius:14px}
+  .section-head{margin-bottom:10px}
+  .quick-card{padding:13px}
+  .quick-hours{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .quick-hour{min-height:40px;padding:7px 5px}
+  .quick-row{grid-template-columns:minmax(0,1fr) auto!important}
+  .quick-row .btn{width:auto!important;min-width:76px;min-height:42px}
+  .btn{min-height:42px}
+  input,select,textarea{font-size:16px} /* prevents mobile browser zoom */
+  .date-toolbar{grid-template-columns:44px minmax(0,1fr) 44px}
+  .date-toolbar .today-jump{grid-column:1/4}
+  .date-nav-btn{padding:8px}
+  .selected-sessions{gap:8px}
+  .session-edit-head{align-items:center}
+  .mobile-dock{
+    left:8px!important;right:8px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;
+    border-radius:18px!important;padding:6px!important
+  }
+  .mobile-dock button{min-height:48px;font-size:10px!important;padding:7px 2px!important}
+  .table-wrap{overflow:visible}
+  .table{min-width:0}
+  .table thead{display:none}
+  .table tbody{display:grid;gap:8px}
+  .table tr{display:grid;grid-template-columns:1fr auto;gap:2px 8px;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel2)}
+  .table td{display:block;border:0;padding:2px 0}
+  .table td:nth-child(1){grid-column:1;color:var(--muted);font-size:11px}
+  .table td:nth-child(2){grid-column:1;font-weight:850}
+  .table td:nth-child(3){grid-column:2;grid-row:1/3;font-weight:850}
+  .table td:nth-child(4){grid-column:1/3;color:var(--muted)}
+  .table td:nth-child(5){grid-column:1/3}
+}
+@media(max-width:430px){
+  #headlineScores,#calcHeadline{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .pillar-shortcuts{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .pillar-shortcut{font-size:10px}
+}
+
 </style>
 </head>
 <body>
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <div class="auth-mark"><span></span>Hamza Tracker</div>
+    <h1>Your tracker.</h1>
+    <p>Sign in first, then your data loads and stays synced across devices.</p>
+    <button class="btn primary" id="gateLoginBtn" hidden>Continue with Google</button>
+    <div class="auth-status" id="gateStatus">Checking your session…</div>
+  </div>
+</div>
+
 <div class="app">
 <aside class="side">
   <div class="brand"><strong>Hamza</strong><span>Performance tracker</span></div>
@@ -174,7 +281,7 @@ body{
 </aside>
 
 <main>
-<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Study, performance and the few things worth preserving.</div></div><div class="top-date" id="dateNow"></div></div>
+<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Study, performance and the few things worth preserving.</div></div><div style="display:flex;align-items:center;gap:8px"><div class="top-date" id="dateNow"></div><button class="btn small mobile-system" data-jump="reference" aria-label="System">⚙</button></div></div>
 
 <section class="view active" id="dashboard">
   <div class="grid g5" id="headlineScores"></div>
@@ -197,18 +304,33 @@ body{
 </section>
 
 <section class="view" id="today">
-  <div class="grid g2">
-    <div class="card"><div class="section-head"><div><h3>Day</h3><p>Log any date, not only today.</p></div><span id="daySaveStatus" class="tiny">Not confirmed</span></div>
-      <div class="fields"><div class="field"><label>Date</label><input id="activeDate" type="date"></div><div class="field"><label>Reference day</label><input id="activeDayName" disabled></div></div>
-      <div id="todayPillars" class="pillars" style="margin-top:12px"></div>
+  <div class="card">
+    <div class="section-head"><div><h3>Date</h3><p>Jump anywhere, log it, or correct an older day.</p></div><span id="daySaveStatus" class="tiny">Not confirmed</span></div>
+    <div class="date-toolbar">
+      <button class="btn date-nav-btn" id="prevDateBtn" aria-label="Previous day">←</button>
+      <div class="field"><label>Date</label><input id="activeDate" type="date"></div>
+      <button class="btn date-nav-btn" id="nextDateBtn" aria-label="Next day">→</button>
+      <button class="btn today-jump" id="todayDateBtn">Today</button>
     </div>
-    <div class="card"><div class="section-head"><div><h3>Fast log</h3><p>One-tap presets or a custom duration.</p></div></div><div class="quick-grid" id="quickLogGrid"></div></div>
+    <div class="date-jumps" id="dateJumps" style="margin-top:9px"></div>
+    <input id="activeDayName" hidden>
+    <div id="todayPillars" class="pillars" style="margin-top:12px"></div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Close the day</h3><p>Only confirm when the day's tracking is complete.</p></div></div>
+    <div class="section-head"><div><h3>Log activity</h3><p>College, Study, German and Training all get edited here.</p></div></div>
+    <div class="quick-grid" id="quickLogGrid"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-head"><div><h3>Logged on this date</h3><p>Edit hours, type, note, or even move an entry to another date.</p></div></div>
+    <div id="selectedDateSessions" class="selected-sessions"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-head"><div><h3>Close the day</h3><p>Only confirm when the selected date's tracking is complete.</p></div></div>
     <div class="callout"><b>Missing ≠ zero.</b> Confirmation tells the calculations that an unlogged commitment really was zero rather than forgotten.</div>
-    <button class="btn primary" id="confirmDay" style="margin-top:10px">Confirm day as fully logged</button>
+    <button class="btn primary" id="confirmDay" style="margin-top:10px">Confirm selected date as fully logged</button>
     <details style="margin-top:10px"><summary>Adjust this date's reference targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save date override</button></details>
   </div>
 </section>
@@ -216,17 +338,14 @@ body{
 <section class="view" id="study"><div id="studyPage"></div></section>
 
 <section class="view" id="calculations">
-  <div class="section-head"><div><h3>College · German · Training</h3><p>All three live here instead of separate pages.</p></div></div>
-  <div class="performance-grid" id="performancePillars"></div>
-
-  <div class="grid g5" id="calcHeadline" style="margin-top:14px"></div>
+  <div class="grid g5" id="calcHeadline"></div>
   <div class="grid g2" style="margin-top:12px">
     <div class="card"><div class="section-head"><div><h3>Routine coverage</h3><p>Current week by pillar.</p></div></div><div id="calcCoverage"></div></div>
     <div class="card"><div class="section-head"><div><h3>Trend diagnostics</h3><p>The supporting numbers behind the headline scores.</p></div></div><div id="trendDiagnostics"></div></div>
   </div>
   <div class="grid g2" style="margin-top:12px">
     <div class="card"><div class="section-head"><div><h3>Data status</h3><p>Unconfirmed days never count as zero.</p></div></div><div id="dataStatus"></div></div>
-    <div class="card"><div class="section-head"><div><h3>Per-pillar form</h3><p>Recent completion by college, study, German and training.</p></div></div><div id="pillarForm"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Per-pillar form</h3><p>Recent completion by College, Study, German and Training.</p></div></div><div id="pillarForm"></div></div>
   </div>
   <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>What the system calculates</h3><p>Five headline metrics; everything else is diagnostic.</p></div></div><div class="grid g3" id="calculationGlossary"></div></div>
 </section>
@@ -259,9 +378,10 @@ body{
   </div>
 
   <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Account</h3><p>Cloud sync is tied to your Google sign-in.</p></div></div><div class="system-account"><span class="tiny" id="systemAccount">Checking…</span><button class="btn small" id="systemLogoutBtn">Sign out</button></div></div>
     <div class="card"><div class="section-head"><div><h3>Backup</h3><p>Stored locally, with automatic cloud sync when signed in.</p></div></div><button class="btn" id="exportBtn">Export JSON</button> <label class="btn" for="importFile">Import JSON</label><input id="importFile" type="file" accept="application/json" hidden></div>
-    <div class="card"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div>
   </div>
+  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div>
 </section>
 </main>
 </div>
@@ -338,16 +458,29 @@ function save(sync=true){
 }
 function setSyncState(msg,bad=false){const el=document.getElementById('syncState');if(!el)return;el.textContent=msg;el.style.color=bad?'var(--danger)':'var(--muted)'}
 function renderAuthState(){
-  const state=document.getElementById('authState'),login=document.getElementById('loginBtn'),logout=document.getElementById('logoutBtn');
-  if(!state||!login||!logout)return;
+  const state=document.getElementById('authState'),
+        login=document.getElementById('loginBtn'),
+        logout=document.getElementById('logoutBtn'),
+        gate=document.getElementById('authGate'),
+        gateBtn=document.getElementById('gateLoginBtn'),
+        gateStatus=document.getElementById('gateStatus'),
+        systemAccount=document.getElementById('systemAccount');
+
   if(cloudUser){
-    state.textContent=cloudUser.email||'Signed in';
-    login.hidden=true;
-    logout.hidden=false;
+    if(state)state.textContent=cloudUser.email||'Signed in';
+    if(login)login.hidden=true;
+    if(logout)logout.hidden=false;
+    if(gate)gate.classList.add('hidden');
+    if(gateBtn)gateBtn.hidden=true;
+    if(systemAccount)systemAccount.textContent=cloudUser.email||'Signed in';
   }else{
-    state.textContent='Local mode · sign in to sync';
-    login.hidden=false;
-    logout.hidden=true;
+    if(state)state.textContent='Signed out';
+    if(login)login.hidden=false;
+    if(logout)logout.hidden=true;
+    if(gate)gate.classList.remove('hidden');
+    if(gateBtn)gateBtn.hidden=false;
+    if(gateStatus)gateStatus.textContent='Sign in to open your tracker.';
+    if(systemAccount)systemAccount.textContent='Signed out';
     setSyncState('');
   }
 }
@@ -398,11 +531,16 @@ async function initCloud(){
 }
 async function signInGoogle(){
   setSyncState('Opening Google…');
+  const gs=document.getElementById('gateStatus');
+  if(gs)gs.textContent='Opening Google…';
   const {error}=await cloud.auth.signInWithOAuth({
     provider:'google',
     options:{redirectTo:'https://hamza-tracker.vercel.app/'}
   });
-  if(error)setSyncState(error.message,true);
+  if(error){
+    setSyncState(error.message,true);
+    if(gs)gs.textContent=error.message;
+  }
 }
 function iso(dt=new Date()){const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');return `${y}-${m}-${d}`}
 function parseDate(s){const [y,m,d]=String(s).split('-').map(Number);return new Date(y,m-1,d,12,0,0)}
@@ -465,12 +603,16 @@ function renderToday(){
   document.getElementById('activeDayName').value=dayName(activeDate);
   document.getElementById('daySaveStatus').textContent=data.days[activeDate]?.confirmed?'Confirmed':'Not confirmed';
 
+  const jumpDates=Array.from({length:7},(_,i)=>addDays(activeDate,i-3));
+  document.getElementById('dateJumps').innerHTML=jumpDates.map(d=>`<button type="button" class="date-chip ${d===activeDate?'active':''}" data-date-jump="${d}">${d===iso()?'Today':parseDate(d).toLocaleDateString('en-US',{weekday:'short',day:'numeric'})}</button>`).join('');
+  document.querySelectorAll('[data-date-jump]').forEach(b=>b.onclick=()=>{activeDate=b.dataset.dateJump;renderToday()});
+
   document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{
     const t=target(activeDate,p),a=sessionHours(activeDate,p),pct=t?clamp(a/t*100,0,100):null;
     return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${fmt(a)}h</b><div class="tiny">${t?`reference ${fmt(t)}h · ${Math.round(pct)}%`:'no reference target'}</div></div>`;
   }).join('');
 
-  document.getElementById('quickLogGrid').innerHTML=PILLARS.map(p=>`<div class="quick-card ${pillarClass[p]}"><h4>${p}</h4><div class="tiny">${target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target today — logging still allowed'}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`).join('');
+  document.getElementById('quickLogGrid').innerHTML=PILLARS.map(p=>`<div class="quick-card ${pillarClass[p]}"><h4>${p}</h4><div class="tiny">${target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target on this date — logging still allowed'}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`).join('');
 
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
     const [p,h]=b.dataset.quickHours.split('|');
@@ -483,6 +625,51 @@ function renderToday(){
       document.getElementById('quickHours'+p).value='';
       renderAll();
     }
+  });
+
+  const sessions=PILLARS.flatMap(p=>data.sessions[p].filter(x=>x.date===activeDate).map(x=>({...x,pillar:p})))
+    .sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));
+  document.getElementById('selectedDateSessions').innerHTML=sessions.length?sessions.map(x=>{
+    const opts=[...quickTypeOptions(x.pillar,x.date)];
+    if(!opts.includes(x.type))opts.unshift(x.type);
+    return `<div class="session-edit-card ${pillarClass[x.pillar]}" data-session-card="${x.pillar}|${x.id}">
+      <div class="session-edit-head">
+        <div><b>${x.pillar} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
+        <span class="badge">${fmt(x.hours)}h</span>
+      </div>
+      <details>
+        <summary>Edit</summary>
+        <div class="fields" style="margin-top:9px">
+          <div class="field"><label>Date</label><input data-edit-date type="date" value="${x.date}"></div>
+          <div class="field"><label>Type</label><select data-edit-type>${opts.map(o=>`<option ${o===x.type?'selected':''}>${escapeHtml(o)}</option>`).join('')}</select></div>
+          <div class="field"><label>Hours</label><input data-edit-hours type="number" min="0.1" step="0.25" value="${x.hours}"></div>
+          <div class="field"><label>Note</label><input data-edit-note value="${escapeHtml(x.note||'')}"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px">
+          <button class="btn pillar-btn ${pillarClass[x.pillar]}" data-save-session="${x.pillar}|${x.id}">Save changes</button>
+          <button class="btn ghost danger-link" data-delete-session="${x.pillar}|${x.id}">Delete</button>
+        </div>
+      </details>
+    </div>`;
+  }).join(''):'<div class="empty">Nothing logged on this date yet.</div>';
+
+  document.querySelectorAll('[data-save-session]').forEach(b=>b.onclick=()=>{
+    const [p,id]=b.dataset.saveSession.split('|');
+    const card=b.closest('[data-session-card]');
+    const item=data.sessions[p].find(x=>x.id===id);
+    if(!item)return;
+    const newHours=Number(card.querySelector('[data-edit-hours]').value);
+    if(!Number.isFinite(newHours)||newHours<=0)return;
+    item.date=card.querySelector('[data-edit-date]').value||item.date;
+    item.type=card.querySelector('[data-edit-type]').value||item.type;
+    item.hours=newHours;
+    item.note=card.querySelector('[data-edit-note]').value.trim();
+    save();renderAll();
+  });
+  document.querySelectorAll('[data-delete-session]').forEach(b=>b.onclick=()=>{
+    const [p,id]=b.dataset.deleteSession.split('|');
+    data.sessions[p]=data.sessions[p].filter(x=>x.id!==id);
+    save();renderAll();
   });
 
   document.getElementById('overrideFields').innerHTML=PILLARS.map(p=>`<div class="field"><label>${p} target hours</label><input data-override="${p}" type="number" min="0" step="0.25" value="${target(activeDate,p)}"></div>`).join('');
@@ -559,7 +746,6 @@ function bindSessionControls(){
 
 function renderTrackingPages(){
   document.getElementById('studyPage').innerHTML=sessionPageHtml('Study');
-  document.getElementById('performancePillars').innerHTML=['College','German','Training'].map(performancePillarHtml).join('');
   bindSessionControls();
 }
 function renderCalculations(){document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());const recent=recentScore(),base=baselineScore(),scores=recentWindowScores(28);document.getElementById('trendDiagnostics').innerHTML=`<div class="row"><div class="grow">Recent performance</div><b>${recent===null?'—':fmt(recent,1)}</b></div><div class="row"><div class="grow">Starting baseline</div><b>${base===null?'—':fmt(base,1)}</b></div><div class="row"><div class="grow">28-day volatility</div><b>${scores.length<5?'—':fmt(sd(scores),1)}</b></div><div class="row"><div class="grow">Momentum</div><b>${growth()===null?'—':growth()>3?'↑ Positive':growth()<-3?'↓ Negative':'→ Stable'}</b></div>`;
@@ -574,6 +760,9 @@ function renderAll(){document.getElementById('dateNow').textContent=new Date().t
 // Today
 const activeDateInput=document.getElementById('activeDate');
 activeDateInput.addEventListener('change',e=>{activeDate=e.target.value||iso();renderToday()});
+document.getElementById('prevDateBtn').addEventListener('click',()=>{activeDate=addDays(activeDate,-1);renderToday()});
+document.getElementById('nextDateBtn').addEventListener('click',()=>{activeDate=addDays(activeDate,1);renderToday()});
+document.getElementById('todayDateBtn').addEventListener('click',()=>{activeDate=iso();renderToday()});
 document.getElementById('confirmDay').addEventListener('click',()=>{
   data.days[activeDate]={...(data.days[activeDate]||{}),confirmed:true,confirmedAt:new Date().toISOString()};
   save();renderAll();
@@ -601,7 +790,9 @@ document.getElementById('importFile').addEventListener('change',async e=>{const 
 document.getElementById('resetBtn').addEventListener('click',()=>{if(confirm('Reset all tracker data?')){data=emptyData();save();activeDate=iso();renderAll()}});
 
 document.getElementById('loginBtn').addEventListener('click',signInGoogle);
+document.getElementById('gateLoginBtn').addEventListener('click',signInGoogle);
 document.getElementById('logoutBtn').addEventListener('click',()=>cloud.auth.signOut());
+document.getElementById('systemLogoutBtn').addEventListener('click',()=>cloud.auth.signOut());
 renderAll();
 initCloud();
 })();
