@@ -299,6 +299,24 @@ body{
   .admin-summary{grid-template-columns:1fr}
 }
 
+
+/* v12: external cancellations / excused commitments */
+.exception-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.exception-item{--pillar:#71849a;border:1px solid color-mix(in srgb,var(--pillar) 35%,var(--line));background:color-mix(in srgb,var(--pillar) 7%,var(--panel2));border-radius:12px;padding:10px}
+.exception-item b{display:block;font-size:12px}
+.exception-item .tiny{margin-top:3px}
+.exception-item .btn{width:100%;margin-top:8px}
+.exception-item.active{border-color:color-mix(in srgb,var(--german) 55%,var(--line));background:color-mix(in srgb,var(--german) 8%,var(--panel2))}
+.attend-cancel{border:1px solid color-mix(in srgb,var(--german) 55%,var(--line));background:color-mix(in srgb,var(--german) 9%,var(--panel));color:#ffe5a6}
+.attendance-actions{grid-template-columns:1fr 1fr 1fr auto}
+.attendance-card[data-status="cancelled"] .attend-cancel{background:color-mix(in srgb,var(--german) 24%,var(--panel));border-color:var(--german);color:#fff2c8}
+.attendance-status.cancelled{color:var(--german)}
+@media(max-width:900px){
+  .exception-grid{grid-template-columns:1fr}
+  .attendance-actions{grid-template-columns:1fr 1fr}
+  .attendance-actions .attend-clear{grid-column:2}
+}
+
 </style>
 </head>
 <body>
@@ -380,7 +398,12 @@ body{
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Attendance</h3><p>College lectures/sections and German are attendance, not hours.</p></div></div>
+    <div class="section-head"><div><h3>External cancellations</h3><p>If the institution, teacher, or coach calls it off, mark it here. It will be excluded from discipline and consistency scoring.</p></div></div>
+    <div id="exceptionGrid" class="exception-grid"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-head"><div><h3>Attendance</h3><p>College lectures/sections and German are attendance, not hours. Individual classes can also be marked cancelled.</p></div></div>
     <div id="attendanceGrid" class="attendance-grid"></div>
   </div>
 
@@ -682,6 +705,7 @@ function assistantContext(){
     thisWeek:wc,
     last28Days:{studyHours:totalActual(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalActual(ds,'Training')},
     selectedDateAttendance:attendance,
+    selectedDateExceptions:data.days?.[activeDate]?.exceptions||{},
     recentStudy,
     recentTraining,
     german:{starts:GERMAN_START,courseHoursPerWeek:GERMAN_COURSE_WEEKLY_HOURS,studyHoursPerWeek:GERMAN_STUDY_WEEKLY_TARGET},note:'Diary/Entries text and session notes are intentionally excluded from automatic AI context.'
@@ -838,11 +862,29 @@ function fmt(x,d=1){return Number.isFinite(Number(x))?Number(x).toFixed(d).repla
 function uid(prefix='x'){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function escapeHtml(s=''){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c))}
 function germanActive(date){return String(date)>=GERMAN_START}
+function referenceTarget(date,pillar){
+  if(pillar==='German'&&!germanActive(date))return 0;
+  return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0);
+}
+function externalException(date,pillar){return data.days?.[date]?.exceptions?.[pillar]||null}
+function isExternallyCancelled(date,pillar){return !!externalException(date,pillar)}
+function setExternalException(date,pillar,active,reason='Externally cancelled'){
+  data.days[date]=data.days[date]||{};
+  data.days[date].exceptions=data.days[date].exceptions||{};
+  if(active)data.days[date].exceptions[pillar]={type:'external_cancelled',reason,updatedAt:new Date().toISOString()};
+  else delete data.days[date].exceptions[pillar];
+  if(!Object.keys(data.days[date].exceptions).length)delete data.days[date].exceptions;
+  save();
+}
 function target(date,pillar){
   if(pillar==='German'&&!germanActive(date))return 0;
+  if(isExternallyCancelled(date,pillar))return 0;
   const override=data.days[date]?.overrides?.[pillar];
   if(override!==undefined&&override!==null&&override!=='')return Number(override)||0;
-  return Number(reference[dayName(date)]?.[pillar.toLowerCase()]||0);
+  if(pillar==='College'||pillar==='German'){
+    return scheduledAttendance(date,pillar).filter(x=>attendanceStatus(date,x.id)!=='cancelled').length;
+  }
+  return referenceTarget(date,pillar);
 }
 function sessionHours(date,pillar){return data.sessions[pillar].filter(x=>x.date===date).reduce((s,x)=>s+Number(x.hours||0),0)}
 function germanStudyHours(date){
@@ -866,6 +908,9 @@ function setAttendance(date,id,status){
   else delete data.attendance[date][id];
   if(!Object.keys(data.attendance[date]).length)delete data.attendance[date];
   save();
+}
+function cancelledAttendanceCount(date,pillar){
+  return scheduledAttendance(date,pillar).filter(x=>attendanceStatus(date,x.id)==='cancelled').length;
 }
 function attendanceActual(date,pillar){
   return scheduledAttendance(date,pillar).filter(x=>attendanceStatus(date,x.id)==='present').length;
@@ -918,8 +963,10 @@ function weekCoverage(){
 function daySummary(date){
   const bits=[];
   PILLARS.forEach(p=>{
-    const a=actualValue(date,p),t=target(date,p);
+    if(isExternallyCancelled(date,p)){bits.push(`${p} cancelled externally`);return}
+    const a=actualValue(date,p),t=target(date,p),cancelled=(p==='College'||p==='German')?cancelledAttendanceCount(date,p):0;
     if(a>0)bits.push((p==='College'||p==='German')?`${p} ${fmt(a,0)}/${fmt(t,0)} attended`:`${p} ${fmt(a)}h`);
+    if(cancelled>0)bits.push(`${p} ${cancelled} cancelled`);
   });
   const notes=data.diary.filter(x=>x.date===date).length;
   if(notes)bits.push(`${notes} entr${notes===1?'y':'ies'}`);
@@ -1017,30 +1064,55 @@ function renderToday(){
   document.querySelectorAll('[data-date-jump]').forEach(b=>b.onclick=()=>{activeDate=b.dataset.dateJump;renderToday()});
 
   document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{
+    const exc=isExternallyCancelled(activeDate,p);
+    if(exc)return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>Excused</b><div class="tiny">Cancelled externally · not scored</div></div>`;
     if(p==='German'){
       if(!germanActive(activeDate))return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>Starts Oct 12</b><div class="tiny">5h course + 4h study per week from Oct 12</div></div>`;
-      const att=attendanceActual(activeDate,'German'),attTarget=target(activeDate,'German'),study=germanStudyHours(activeDate);
+      const att=attendanceActual(activeDate,'German'),attTarget=target(activeDate,'German'),study=germanStudyHours(activeDate),cancelled=cancelledAttendanceCount(activeDate,'German');
       const ref=attTarget?`${fmt(att,0)} / ${fmt(attTarget,0)} course attendance · weekly study target 4h`:`German study ${fmt(study)}h today · weekly target 4h`;
-      return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${fmt(att,0)} attended · ${fmt(study)}h study</b><div class="tiny">${ref}</div></div>`;
+      return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${fmt(att,0)} attended · ${fmt(study)}h study</b><div class="tiny">${ref}${cancelled?' · '+cancelled+' class cancelled':''}</div></div>`;
     }
-    const t=target(activeDate,p),a=actualValue(activeDate,p),pct=t?clamp(a/t*100,0,100):null;
+    const t=target(activeDate,p),a=actualValue(activeDate,p),pct=t?clamp(a/t*100,0,100):null,cancelled=p==='College'?cancelledAttendanceCount(activeDate,p):0;
     const shown=p==='College'?`${fmt(a,0)} attended`:`${fmt(a)}h`;
     const ref=t?(p==='College'?`reference ${fmt(t,0)} attendance · ${Math.round(pct)}%`:`reference ${fmt(t)}h · ${Math.round(pct)}%`):'no reference target';
-    return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${shown}</b><div class="tiny">${ref}</div></div>`;
+    return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${shown}</b><div class="tiny">${ref}${cancelled?' · '+cancelled+' class cancelled':''}</div></div>`;
   }).join('');
+
+  const exceptionCandidates=[
+    {pillar:'College',show:scheduledAttendance(activeDate,'College').length>0,label:'College',why:'Institution/day called off'},
+    {pillar:'German',show:scheduledAttendance(activeDate,'German').length>0,label:'German course',why:'Teacher/course called off'},
+    {pillar:'Training',show:referenceTarget(activeDate,'Training')>0,label:'Training',why:'Coach/gym called off'}
+  ].filter(x=>x.show);
+  document.getElementById('exceptionGrid').innerHTML=exceptionCandidates.length?exceptionCandidates.map(x=>{
+    const active=isExternallyCancelled(activeDate,x.pillar);
+    return `<div class="exception-item ${pillarClass[x.pillar]} ${active?'active':''}">
+      <b>${x.label}</b><div class="tiny">${active?'Excused · excluded from scoring':x.why}</div>
+      <button class="btn small ${active?'ghost':'danger'}" data-exception="${x.pillar}|${active?'clear':'set'}">${active?'Clear cancellation':'Mark externally cancelled'}</button>
+    </div>`;
+  }).join(''):'<div class="empty">No College, German course, or Training commitment is scheduled on this date.</div>';
+  document.querySelectorAll('[data-exception]').forEach(b=>b.onclick=()=>{
+    const [pillar,action]=b.dataset.exception.split('|');
+    setExternalException(activeDate,pillar,action==='set');
+    renderAll();
+  });
 
   const attendanceItems=scheduledAttendance(activeDate);
   document.getElementById('attendanceGrid').innerHTML=attendanceItems.length?attendanceItems.map(x=>{
-    const status=attendanceStatus(activeDate,x.id);
-    const statusText=status==='present'?'Attended':status==='absent'?'Missed':'Not logged';
+    const whole=isExternallyCancelled(activeDate,x.pillar);
+    const status=whole?'cancelled':attendanceStatus(activeDate,x.id);
+    const statusText=whole?'Cancelled externally · whole commitment excused':status==='present'?'Attended':status==='absent'?'Missed':status==='cancelled'?'Cancelled externally':'Not logged';
+    const actions=whole
+      ? '<div class="callout" style="margin-top:9px">This whole commitment is marked externally cancelled. Clear it above to edit individual attendance.</div>'
+      : `<div class="attendance-actions">
+          <button type="button" class="attend-yes" data-attendance="${x.id}|present">Attended</button>
+          <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
+          <button type="button" class="attend-cancel" data-attendance="${x.id}|cancelled">Cancelled</button>
+          <button type="button" class="attend-clear" data-attendance="${x.id}|clear" aria-label="Clear attendance">×</button>
+        </div>`;
     return `<div class="attendance-card ${pillarClass[x.pillar]}" data-status="${status||''}">
       <h4>${escapeHtml(x.label)}</h4>
       <div class="attendance-meta">${x.pillar} · ${x.kind}${x.time?' · '+escapeHtml(x.time):''}</div>
-      <div class="attendance-actions">
-        <button type="button" class="attend-yes" data-attendance="${x.id}|present">Attended</button>
-        <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
-        <button type="button" class="attend-clear" data-attendance="${x.id}|clear" aria-label="Clear attendance">×</button>
-      </div>
+      ${actions}
       <div class="attendance-status ${status||'unlogged'}">${statusText}</div>
     </div>`;
   }).join(''):`<div class="empty">${!germanActive(activeDate)&&['Monday','Thursday'].includes(dayName(activeDate))?'German starts Oct 12. No German attendance is expected yet.':'No College or German attendance scheduled on this date.'}</div>`;
@@ -1053,6 +1125,7 @@ function renderToday(){
 
   const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
+    if(p==='Training'&&isExternallyCancelled(activeDate,'Training'))return `<div class="quick-card training"><h4>Training</h4><div class="tiny">Cancelled externally · not expected and not scored on this date.</div></div>`;
     const sub=p==='German'?'Flexible weekly target 4h · starts from Oct 12':(target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target on this date — logging still allowed');
     return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`;
   }).join('');
@@ -1121,7 +1194,7 @@ function renderToday(){
     save();renderAll();
   });
 
-  document.getElementById('overrideFields').innerHTML=PILLARS.map(p=>{
+  document.getElementById('overrideFields').innerHTML='<div class="callout" style="grid-column:1/-1">External cancellations always override targets for scoring.</div>'+PILLARS.map(p=>{
     const label=(p==='College'||p==='German')?`${p} attendance target`:`${p} target hours`;
     return `<div class="field"><label>${label}</label><input data-override="${p}" type="number" min="0" step="${p==='College'||p==='German'?'1':'0.25'}" value="${target(activeDate,p)}"></div>`;
   }).join('');
@@ -1216,7 +1289,7 @@ function renderCalculations(){
     ['Growth','Whether recent performance is higher or lower than the previous comparable period.'],
     ['Progress','How much distance you have closed from your starting baseline toward the reference.'],
     ['Confidence','How complete and mature the data is behind the other calculations.'],
-    ['German','Starts Oct 12. Course = attendance across 5h/week. German self-study = flexible 4h/week. Weekly German coverage combines both.']
+    ['German','Starts Oct 12. Course = attendance across 5h/week. German self-study = flexible 4h/week. Weekly German coverage combines both.'],['External cancellations','Institution/teacher/coach cancellations are treated as non-applicable, not failures. Individual College/German classes can also be cancelled separately.']
   ];
   document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('');
 }
