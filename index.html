@@ -278,7 +278,7 @@ body{
 .assistant-prompts{display:flex;gap:6px;overflow:auto;margin-bottom:8px;scrollbar-width:none}
 .assistant-prompts::-webkit-scrollbar{display:none}
 .assistant-prompts button{flex:0 0 auto}
-.admin-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.admin-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .admin-users{display:grid;gap:9px}
 .admin-user{border:1px solid var(--line);background:var(--panel2);border-radius:13px;padding:11px}
 .admin-user-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
@@ -287,6 +287,7 @@ body{
 .admin-metric span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
 .admin-metric b{display:block;margin-top:2px}
 @media(max-width:900px){
+  .pillar-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .assistant-shell{grid-template-rows:minmax(300px,55vh) auto}
   .chat-msg{max-width:92%}
   .admin-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -635,6 +636,11 @@ async function loadAdmin(){
     .select('user_key,updated_at,confirmed_days_28d,completion,consistency,growth,progress,confidence,college_attendance_pct,study_hours_28d,german_attendance_pct,training_hours_28d')
     .order('updated_at',{ascending:false});
   if(error){if(box)box.innerHTML='<div class="empty">Could not load analytics.</div>';return}
+  const todayIso=iso();
+  const {data:usageRows}=await cloud.from('ai_daily_usage')
+    .select('usage_date,request_count')
+    .eq('usage_date',todayIso);
+  const aiToday=(usageRows||[]).reduce((s,r)=>s+Number(r.request_count||0),0);
   const now=Date.now(),week=7*86400000;
   const active7=(rows||[]).filter(r=>now-Date.parse(r.updated_at)<=week).length;
   const completions=(rows||[]).map(r=>Number(r.completion)).filter(Number.isFinite);
@@ -642,7 +648,8 @@ async function loadAdmin(){
   if(summary)summary.innerHTML=[
     ['Tracked users',(rows||[]).length],
     ['Active · 7d',active7],
-    ['Avg completion',avgCompletion===null?'—':Math.round(avgCompletion)+'%']
+    ['Avg completion',avgCompletion===null?'—':Math.round(avgCompletion)+'%'],
+    ['AI requests · today',aiToday]
   ].map(([a,b])=>`<div class="admin-metric"><span>${a}</span><b>${b}</b></div>`).join('');
   if(box)box.innerHTML=(rows||[]).length?(rows||[]).map(r=>`<div class="admin-user">
     <div class="admin-user-head"><div><b>User ${escapeHtml(r.user_key||'—')}</b><div class="tiny">Last active ${new Date(r.updated_at).toLocaleString()}</div></div><span class="badge">${r.confirmed_days_28d||0} confirmed days</span></div>
