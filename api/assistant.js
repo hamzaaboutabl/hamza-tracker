@@ -1,3 +1,5 @@
+import { generateText } from 'ai';
+
 const SUPABASE_URL = 'https://firnmcqtjprckgqdcplg.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oG0bcYmr6nijxKeY02U0YA_iHnp79gZ';
 const MODEL = 'openai/gpt-5.6-sol';
@@ -53,9 +55,6 @@ export default async function handler(req, res) {
     const allowed = await supabaseCall('/rest/v1/rpc/consume_ai_request', token, { p_limit: 20 });
     if (!allowed) return res.status(429).json({ error: 'Daily assistant limit reached. The site owner has unlimited app access.' });
 
-    const gatewayToken = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
-    if (!gatewayToken) return res.status(503).json({ error: 'Assistant backend is not configured yet.' });
-
     const context = JSON.stringify(req.body?.context || {}).slice(0, 14000);
     const system = [
       'You are the embedded assistant inside Hamza Tracker.',
@@ -65,36 +64,21 @@ export default async function handler(req, res) {
       'Treat missing/unconfirmed data as missing, not zero.',
       'Do not reveal or infer other users private data.',
       'The user is a teenager: do not provide explicit sexual content, self-harm descriptions, dangerous-activity instructions, or restrictive body/weight advice.',
-      isOwner === true ? 'The signed-in user is the site owner. They have no app-level assistant request limit.' : 'The signed-in user is a normal site user.'
+      isOwner === true ? 'The signed-in user is the site owner. They have no app-level assistant request limit.' : 'The signed-in user is a normal site user.',
+      'Current tracker context (JSON): ' + context
     ].join(' ');
 
-    const ai = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + gatewayToken,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'system', content: 'Current tracker context (JSON): ' + context },
-          ...history,
-          { role: 'user', content: message }
-        ],
-        max_tokens: 700
-      })
+    const result = await generateText({
+      model: MODEL,
+      system,
+      messages: [
+        ...history,
+        { role: 'user', content: message }
+      ],
+      maxOutputTokens: 700
     });
 
-    const raw = await ai.text();
-    let out;
-    try { out = JSON.parse(raw); } catch { out = null; }
-    if (!ai.ok) {
-      const reason = out?.error?.message || out?.message || 'AI request failed';
-      return res.status(502).json({ error: reason });
-    }
-
-    const reply = out?.choices?.[0]?.message?.content;
+    const reply = result?.text;
     if (!reply) return res.status(502).json({ error: 'The assistant returned no text.' });
 
     return res.status(200).json({ reply, model: MODEL, owner: isOwner === true });
