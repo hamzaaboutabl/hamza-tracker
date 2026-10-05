@@ -332,27 +332,21 @@ body{
 
 <div class="app">
 <aside class="side">
-  <div class="brand"><strong>Hamza</strong><span>Performance tracker</span></div>
+  <div class="brand"><strong>Hamza</strong><span>Tracker</span></div>
 
-  <div class="nav-group"><div class="nav-label">Home</div><div class="nav">
+  <div class="nav">
     <button class="active" data-v="dashboard"><span class="dot"></span>Dashboard</button>
     <button data-v="today"><span class="dot"></span>Today</button>
-  </div></div>
-
-  <div class="nav-group"><div class="nav-label">Core</div><div class="nav">
     <button data-v="study"><span class="dot study"></span>Study</button>
     <button data-v="calculations"><span class="dot training"></span>Performance</button>
     <button data-v="assistant"><span class="dot"></span>Assistant</button>
     <button data-v="diary"><span class="dot"></span>Entries</button>
     <button data-v="admin" id="adminNavBtn" class="owner-only" hidden><span class="dot german"></span>Admin</button>
-  </div></div>
-
-  <div class="nav-group"><div class="nav-label">System</div><div class="nav">
-    <button data-v="reference"><span class="dot"></span>System</button>
-  </div></div>
+    <button data-v="reference"><span class="dot"></span>Settings</button>
+  </div>
 
   <div class="cloud-box">
-    <div class="tiny" id="authState">Local mode · checking cloud…</div>
+    <div class="tiny" id="authState">Checking account…</div>
     <button class="btn small" id="loginBtn">Sign in with Google</button>
     <button class="btn small" id="logoutBtn" hidden>Sign out</button>
     <div class="tiny cloud-status" id="syncState"></div>
@@ -360,7 +354,7 @@ body{
 </aside>
 
 <main>
-<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Study, performance and the few things worth preserving.</div></div><div style="display:flex;align-items:center;gap:8px"><div class="top-date" id="dateNow"></div><button class="btn small mobile-system" data-jump="reference" aria-label="System">⚙</button></div></div>
+<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Your week at a glance.</div></div><div style="display:flex;align-items:center;gap:8px"><div class="top-date" id="dateNow"></div><button class="btn small mobile-system" data-jump="reference" aria-label="System">⚙</button></div></div>
 
 <section class="view active" id="dashboard">
   <div class="grid g5" id="headlineScores"></div>
@@ -373,19 +367,14 @@ body{
   </div>
 
   <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>This week</h3><p>Coverage against the reference schedule.</p></div><button class="btn small" data-jump="calculations">Details</button></div><div id="weekCoverage"></div></div>
-    <div class="card"><div class="section-head"><div><h3>Today</h3><p>Actual time vs reference target.</p></div><button class="btn small" data-jump="today">Log</button></div><div id="todayCoverage"></div></div>
-  </div>
-
-  <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Recent entries</h3><p>Only things you chose to preserve.</p></div><button class="btn small" data-jump="diary">Open entries</button></div><div id="recentDiary"></div></div>
-    <div class="card"><div class="section-head"><div><h3>Recent totals</h3><p>Last 28 days by pillar.</p></div></div><div id="recentTotals"></div></div>
+    <div class="card"><div class="section-head"><div><h3>This week</h3></div><button class="btn small" data-jump="calculations">Open</button></div><div id="weekCoverage"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Today</h3></div><button class="btn small" data-jump="today">Log</button></div><div id="todayCoverage"></div></div>
   </div>
 </section>
 
 <section class="view" id="today">
   <div class="card">
-    <div class="section-head"><div><h3>Date</h3><p>Jump anywhere, log it, or correct an older day.</p></div><span id="daySaveStatus" class="tiny">Not confirmed</span></div>
+    <div class="section-head"><div><h3>Date</h3></div><span id="daySaveStatus" class="tiny">Not confirmed</span></div>
     <div class="date-toolbar">
       <button class="btn date-nav-btn" id="prevDateBtn" aria-label="Previous day">←</button>
       <div class="field"><label>Date</label><input id="activeDate" type="date"></div>
@@ -398,30 +387,29 @@ body{
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>External cancellations</h3><p>If the institution, teacher, or coach calls it off, mark it here. It will be excluded from discipline and consistency scoring.</p></div></div>
+    <div class="section-head"><div><h3>Called off</h3><p>College, course, or training cancelled by them.</p></div></div>
     <div id="exceptionGrid" class="exception-grid"></div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Attendance</h3><p>College lectures/sections and German are attendance, not hours. Individual classes can also be marked cancelled.</p></div></div>
+    <div class="section-head"><div><h3>Attendance</h3></div></div>
     <div id="attendanceGrid" class="attendance-grid"></div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Hours</h3><p>Study and Training stay time-based.</p></div></div>
+    <div class="section-head"><div><h3>Hours</h3></div></div>
     <div class="quick-grid" id="quickLogGrid"></div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Study & Training entries</h3><p>Edit hours, type, note, or move an entry to another date.</p></div></div>
+    <div class="section-head"><div><h3>Logged hours</h3></div></div>
     <div id="selectedDateSessions" class="selected-sessions"></div>
   </div>
 
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Close the day</h3><p>Only confirm when the selected date's tracking is complete.</p></div></div>
-    <div class="callout"><b>Missing ≠ zero.</b> Confirmation tells the calculations that an unlogged commitment really was zero rather than forgotten.</div>
-    <button class="btn primary" id="confirmDay" style="margin-top:10px">Confirm selected date as fully logged</button>
-    <details style="margin-top:10px"><summary>Adjust this date's reference targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save date override</button></details>
+    <div class="section-head"><div><h3>Done?</h3></div></div>
+    <button class="btn primary" id="confirmDay">Confirm day</button>
+    <details style="margin-top:10px"><summary>Change today's targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save</button></details>
   </div>
 </section>
 
@@ -430,19 +418,14 @@ body{
 <section class="view" id="calculations">
   <div class="grid g5" id="calcHeadline"></div>
   <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Routine coverage</h3><p>Current week by pillar.</p></div></div><div id="calcCoverage"></div></div>
-    <div class="card"><div class="section-head"><div><h3>Trend diagnostics</h3><p>The supporting numbers behind the headline scores.</p></div></div><div id="trendDiagnostics"></div></div>
+    <div class="card"><div class="section-head"><div><h3>This week</h3></div></div><div id="calcCoverage"></div></div>
+    <div class="card"><div class="section-head"><div><h3>By area</h3></div></div><div id="pillarForm"></div></div>
   </div>
-  <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Data status</h3><p>Unconfirmed days never count as zero.</p></div></div><div id="dataStatus"></div></div>
-    <div class="card"><div class="section-head"><div><h3>Per-pillar form</h3><p>Recent completion by College, Study, German and Training.</p></div></div><div id="pillarForm"></div></div>
-  </div>
-  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>What the system calculates</h3><p>Five headline metrics; everything else is diagnostic.</p></div></div><div class="grid g3" id="calculationGlossary"></div></div>
 </section>
 
 <section class="view" id="assistant">
   <div class="card">
-    <div class="section-head"><div><h3>Tracker Assistant</h3><p>Gemini can read your tracker context and directly log/correct your own tracker when you ask. Diary text and session notes are not sent automatically.</p></div><span class="tiny" id="assistantLimitText"></span></div>
+    <div class="section-head"><div><h3>Assistant</h3><p>Ask questions or tell it to log/correct your tracker.</p></div><span class="tiny" id="assistantLimitText"></span></div>
     <div class="assistant-prompts">
       <button class="btn small" data-ai-prompt="How am I doing this week?">This week</button>
       <button class="btn small" data-ai-prompt="What am I neglecting most right now?">Weakest area</button>
@@ -461,47 +444,35 @@ body{
 
 <section class="view" id="admin">
   <div class="card">
-    <div class="section-head"><div><h3>Owner dashboard</h3><p>Privacy-safe performance and site telemetry only. No diary text, notes, email addresses, or raw activity logs.</p></div><span class="owner-badge">Site owner</span></div>
+    <div class="section-head"><div><h3>Admin</h3></div><span class="owner-badge">Owner</span></div>
     <div class="admin-summary" id="adminSummary"></div>
   </div>
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Users</h3><p>Pseudonymous user key + aggregate performance only.</p></div><button class="btn small" id="refreshAdmin">Refresh</button></div>
+    <div class="section-head"><div><h3>Users</h3></div><button class="btn small" id="refreshAdmin">Refresh</button></div>
     <div class="admin-users" id="adminUsers"></div>
   </div>
 </section>
 
 <section class="view" id="diary">
-  <div class="grid g2">
-    <div class="card">
-      <div class="section-head"><div><h3>New entry</h3><p>No streak. No daily obligation. Write only when something is worth keeping.</p></div></div>
-      <div class="field"><label>Date</label><input id="diaryDate" type="date"></div>
-      <div class="field" style="margin-top:10px"><label>Entry</label><textarea id="diaryText" placeholder="A realization, unusual experience, decision, strong thought, memorable conversation..."></textarea></div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:9px"><button class="btn primary" id="addDiary">Save entry</button><span class="tiny" id="entryMsg"></span></div>
-    </div>
-    <div class="card">
-      <div class="section-head"><div><h3>What belongs here?</h3><p>The structured tracker already handles ordinary days.</p></div></div>
-      <div class="callout"><b>Preserve significance, not routine.</b> Use entries for things the tracker cannot capture: realizations, unusual experiences, major changes, decisions, memorable conversations, or thoughts you actually want to revisit.</div>
-    </div>
+  <div class="card">
+    <div class="section-head"><div><h3>New entry</h3></div></div>
+    <div class="field"><label>Date</label><input id="diaryDate" type="date"></div>
+    <div class="field" style="margin-top:10px"><label>Entry</label><textarea id="diaryText" placeholder="Write something worth keeping..."></textarea></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:9px"><button class="btn primary" id="addDiary">Save</button><span class="tiny" id="entryMsg"></span></div>
   </div>
-
   <div class="card" style="margin-top:12px">
-    <div class="section-head"><div><h3>Archive</h3><p>Your preserved entries, newest first.</p></div></div>
-    <div class="field"><label>Search</label><input id="diarySearch" placeholder="Search entries..."></div>
+    <div class="section-head"><div><h3>Entries</h3></div></div>
+    <div class="field"><label>Search</label><input id="diarySearch" placeholder="Search..."></div>
     <div class="diary-list" id="diaryHistory" style="margin-top:12px"></div>
   </div>
 </section>
 
 <section class="view" id="reference">
-  <div class="card">
-    <div class="section-head"><div><h3>GOAT reference schedule</h3><p>A benchmark, not a pass/fail timetable.</p></div><span class="tiny">College 7 attendances · Study 17h · German course 5h + study 4h · Training 18h</span></div>
-    <div class="scroll"><div class="ref-grid" id="referenceGrid"></div></div>
+  <div class="grid g2">
+    <div class="card"><div class="section-head"><div><h3>Account</h3></div><span class="owner-badge owner-only" id="ownerBadge" hidden>Owner</span></div><div class="system-account"><span class="tiny" id="systemAccount">Checking…</span><div style="display:flex;gap:7px"><button class="btn small owner-only" id="openAdminBtn" data-jump="admin" hidden>Admin</button><button class="btn small" id="systemLogoutBtn">Sign out</button></div></div></div>
+    <div class="card"><div class="section-head"><div><h3>Backup</h3></div></div><button class="btn" id="exportBtn">Export</button> <label class="btn" for="importFile">Import</label><input id="importFile" type="file" accept="application/json" hidden></div>
   </div>
-
-  <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Account</h3><p>Cloud sync is tied to your Google sign-in.</p></div><span class="owner-badge owner-only" id="ownerBadge" hidden>Owner · Author</span></div><div class="system-account"><span class="tiny" id="systemAccount">Checking…</span><div style="display:flex;gap:7px"><button class="btn small owner-only" id="openAdminBtn" data-jump="admin" hidden>Admin</button><button class="btn small" id="systemLogoutBtn">Sign out</button></div></div></div>
-    <div class="card"><div class="section-head"><div><h3>Backup</h3><p>Stored locally, with automatic cloud sync when signed in.</p></div></div><button class="btn" id="exportBtn">Export JSON</button> <label class="btn" for="importFile">Import JSON</label><input id="importFile" type="file" accept="application/json" hidden></div>
-  </div>
-  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div>
+  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Reset</h3></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div>
 </section>
 </main>
 </div>
@@ -607,7 +578,7 @@ function updateOwnerUI(){
   const badge=document.getElementById('ownerBadge');
   if(badge)badge.hidden=!isOwner;
   const limit=document.getElementById('assistantLimitText');
-  if(limit)limit.textContent=isOwner?'Owner · unlimited app requests':'20 assistant requests/day';
+  if(limit)limit.textContent=isOwner?'Owner':'20/day';
 }
 async function loadOwnerRole(){
   if(!cloudUser){isOwner=false;updateOwnerUI();return}
@@ -994,14 +965,14 @@ function setView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
   document.querySelectorAll('.nav button,.mobile-dock button').forEach(b=>b.classList.toggle('active',b.dataset.v===id));
   const titles={
-    dashboard:['Dashboard','Study, performance and the few things worth preserving.'],
-    today:['Today','Fast logging and confirmation.'],
-    study:['Study','BIS study sessions by subject.'],
-    calculations:['Performance','Attendance, hours, trends and calculations.'],
-    assistant:['Assistant','Chat with your tracker data.'],
-    admin:['Admin','Privacy-safe site and performance analytics.'],
-    diary:['Entries','An archive, not a daily obligation.'],
-    reference:['System','Reference schedule, backup and reset.']
+    dashboard:['Dashboard','Your week at a glance.'],
+    today:['Today','Log or fix a day.'],
+    study:['Study','Study sessions.'],
+    calculations:['Performance','How you are doing.'],
+    assistant:['Assistant','Ask or edit by chat.'],
+    admin:['Admin','Site overview.'],
+    diary:['Entries','Things worth keeping.'],
+    reference:['Settings','Account and data.']
   };
   if(id==='admin'&&!isOwner){id='dashboard';document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));}
   document.getElementById('title').textContent=titles[id][0];
@@ -1019,7 +990,19 @@ function coverageHtml(items){return PILLARS.map(p=>{
   const has=x.hasTarget!==undefined?x.hasTarget:!!x.target;
   return `<div class="row ${pillarClass[p]}"><div class="grow"><div class="progress-meta"><b>${p}</b><span class="tiny">${units}</span></div><div class="progress ${pillarClass[p]}"><span style="width:${pct}%"></span></div></div><b>${has?Math.round(pct)+'%':'—'}</b></div>`;
 }).join('')}
-function renderHeadline(){const s=scoreSet();document.getElementById('headlineScores').innerHTML=[scoreCard('Completion',s.Completion,'today'),scoreCard('Consistency',s.Consistency,'recent reliability'),scoreCard('Growth',s.Growth,'recent vs prior'),scoreCard('Progress',s.Progress,'from baseline'),scoreCard('Confidence',s.Confidence,'data quality')].join('');document.getElementById('calcHeadline').innerHTML=document.getElementById('headlineScores').innerHTML}
+function renderHeadline(){
+  const s=scoreSet();
+  const html=[
+    scoreCard('Completion',s.Completion,'today'),
+    scoreCard('Consistency',s.Consistency,'staying on track'),
+    scoreCard('Growth',s.Growth,'recent change'),
+    scoreCard('Progress',s.Progress,'improvement'),
+    scoreCard('Confidence',s.Confidence,'enough data?')
+  ].join('');
+  const h=document.getElementById('headlineScores'),ch=document.getElementById('calcHeadline');
+  if(h)h.innerHTML=html;
+  if(ch)ch.innerHTML=html;
+}
 function renderDashboard(){
   document.getElementById('weekCoverage').innerHTML=coverageHtml(weekCoverage());
   const today={};
@@ -1028,9 +1011,7 @@ function renderDashboard(){
       const t=target(iso(),'German'),a=attendanceActual(iso(),'German'),study=germanStudyHours(iso());
       today[p]={
         actual:a,target:t,hasTarget:t>0,pct:t?clamp(a/t*100,0,100):null,
-        detail:germanActive(iso())
-          ? `${fmt(a,0)} / ${fmt(t,0)} course · ${fmt(study)}h German study today`
-          : 'Starts Oct 12'
+        detail:germanActive(iso())?`${fmt(a,0)} / ${fmt(t,0)} course · ${fmt(study)}h study`:'Starts Oct 12'
       };
       return;
     }
@@ -1038,15 +1019,6 @@ function renderDashboard(){
     today[p]={actual:a,target:t,hasTarget:t>0,pct:t?clamp(a/t*100,0,100):null};
   });
   document.getElementById('todayCoverage').innerHTML=coverageHtml(today);
-  const recent=[...data.diary].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,5);
-  document.getElementById('recentDiary').innerHTML=recent.length?recent.map(n=>`<div class="row"><div class="grow"><b>${prettyDate(n.date)}</b><div class="tiny">${escapeHtml(n.text.slice(0,90))}${n.text.length>90?'…':''}</div></div></div>`).join(''):'<div class="empty">No entries yet.</div>';
-  const ds=dateRange(iso(),28);
-  document.getElementById('recentTotals').innerHTML=PILLARS.map(p=>{
-    const shown=p==='German'
-      ? `${fmt(totalActual(ds,'German'),0)} attended · ${fmt(totalGermanStudyHours(ds))}h study`
-      : actualDisplay(totalActual(ds,p),p);
-    return `<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">last 28 days</div></div><b>${shown}</b></div>`;
-  }).join('');
 }
 function quickTypeOptions(pillar,date){
   if(pillar==='Study')return subjects.filter(x=>x!=='Custom');
@@ -1065,7 +1037,7 @@ function renderToday(){
 
   document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{
     const exc=isExternallyCancelled(activeDate,p);
-    if(exc)return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>Excused</b><div class="tiny">Cancelled externally · not scored</div></div>`;
+    if(exc)return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>Excused</b><div class="tiny">Called off · does not count</div></div>`;
     if(p==='German'){
       if(!germanActive(activeDate))return `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>Starts Oct 12</b><div class="tiny">5h course + 4h study per week from Oct 12</div></div>`;
       const att=attendanceActual(activeDate,'German'),attTarget=target(activeDate,'German'),study=germanStudyHours(activeDate),cancelled=cancelledAttendanceCount(activeDate,'German');
@@ -1086,8 +1058,8 @@ function renderToday(){
   document.getElementById('exceptionGrid').innerHTML=exceptionCandidates.length?exceptionCandidates.map(x=>{
     const active=isExternallyCancelled(activeDate,x.pillar);
     return `<div class="exception-item ${pillarClass[x.pillar]} ${active?'active':''}">
-      <b>${x.label}</b><div class="tiny">${active?'Excused · excluded from scoring':x.why}</div>
-      <button class="btn small ${active?'ghost':'danger'}" data-exception="${x.pillar}|${active?'clear':'set'}">${active?'Clear cancellation':'Mark externally cancelled'}</button>
+      <b>${x.label}</b><div class="tiny">${active?'Does not count':x.why}</div>
+      <button class="btn small ${active?'ghost':'danger'}" data-exception="${x.pillar}|${active?'clear':'set'}">${active?'Clear cancellation':'Mark called off'}</button>
     </div>`;
   }).join(''):'<div class="empty">No College, German course, or Training commitment is scheduled on this date.</div>';
   document.querySelectorAll('[data-exception]').forEach(b=>b.onclick=()=>{
@@ -1100,9 +1072,9 @@ function renderToday(){
   document.getElementById('attendanceGrid').innerHTML=attendanceItems.length?attendanceItems.map(x=>{
     const whole=isExternallyCancelled(activeDate,x.pillar);
     const status=whole?'cancelled':attendanceStatus(activeDate,x.id);
-    const statusText=whole?'Cancelled externally · whole commitment excused':status==='present'?'Attended':status==='absent'?'Missed':status==='cancelled'?'Cancelled externally':'Not logged';
+    const statusText=whole?'Called off · does not count':status==='present'?'Attended':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged';
     const actions=whole
-      ? '<div class="callout" style="margin-top:9px">This whole commitment is marked externally cancelled. Clear it above to edit individual attendance.</div>'
+      ? '<div class="callout" style="margin-top:9px">Called off. Clear it above if that changes.</div>'
       : `<div class="attendance-actions">
           <button type="button" class="attend-yes" data-attendance="${x.id}|present">Attended</button>
           <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
@@ -1125,8 +1097,8 @@ function renderToday(){
 
   const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
-    if(p==='Training'&&isExternallyCancelled(activeDate,'Training'))return `<div class="quick-card training"><h4>Training</h4><div class="tiny">Cancelled externally · not expected and not scored on this date.</div></div>`;
-    const sub=p==='German'?'Flexible weekly target 4h · starts from Oct 12':(target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target on this date — logging still allowed');
+    if(p==='Training'&&isExternallyCancelled(activeDate,'Training'))return `<div class="quick-card training"><h4>Training</h4><div class="tiny">Called off · not expected and not scored on this date.</div></div>`;
+    const sub=p==='German'?'4h/week':(target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target today');
     return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`;
   }).join('');
 
@@ -1194,7 +1166,7 @@ function renderToday(){
     save();renderAll();
   });
 
-  document.getElementById('overrideFields').innerHTML='<div class="callout" style="grid-column:1/-1">External cancellations always override targets for scoring.</div>'+PILLARS.map(p=>{
+  document.getElementById('overrideFields').innerHTML='<div class="callout" style="grid-column:1/-1">Called-off commitments do not count.</div>'+PILLARS.map(p=>{
     const label=(p==='College'||p==='German')?`${p} attendance target`:`${p} target hours`;
     return `<div class="field"><label>${label}</label><input data-override="${p}" type="number" min="0" step="${p==='College'||p==='German'?'1':'0.25'}" value="${target(activeDate,p)}"></div>`;
   }).join('');
@@ -1215,9 +1187,17 @@ function renderEntries(){
     save();renderAll();
   });
 }
-function sessionPageHtml(pillar){const cls=pillarClass[pillar],week=weekDates(),month=monthDates(),all=data.sessions[pillar].reduce((s,x)=>s+Number(x.hours||0),0),w=totalHours(week,pillar),m=totalHours(month,pillar);let extra='';if(pillar==='Study'){const by={};data.sessions.Study.filter(x=>month.includes(x.date)).forEach(x=>by[x.type]=(by[x.type]||0)+Number(x.hours||0));extra=`<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>This month by subject</h3><p>Automatic subject breakdown.</p></div></div>${Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="row"><div class="grow">${escapeHtml(k)}</div><b>${fmt(v)}h</b></div>`).join(''):'<div class="empty">No study data this month.</div>'}</div>`}
+function sessionPageHtml(pillar){
+  const cls=pillarClass[pillar],week=weekDates(),month=monthDates(),w=totalHours(week,pillar),m=totalHours(month,pillar);
+  let extra='';
+  if(pillar==='Study'){
+    const by={};
+    data.sessions.Study.filter(x=>month.includes(x.date)).forEach(x=>by[x.type]=(by[x.type]||0)+Number(x.hours||0));
+    extra=`<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>This month</h3></div></div>${Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="row"><div class="grow">${escapeHtml(k)}</div><b>${fmt(v)}h</b></div>`).join(''):'<div class="empty">No study yet.</div>'}</div>`;
+  }
   const rows=[...data.sessions[pillar]].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,60).map(x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.type)}</td><td>${fmt(x.hours)}h</td><td>${escapeHtml(x.note||'')}</td><td><button class="btn small" data-del-session="${pillar}|${x.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No sessions yet.</td></tr>';
-  return `<div class="grid g2"><div class="card pillar ${cls}"><div class="section-head"><div><h3>Add ${pillar.toLowerCase()} session</h3><p>Fast entry; details are optional.</p></div></div><form data-session-form="${pillar}"><div class="fields"><div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div><div class="field"><label>${pillar==='Study'?'Subject':'Type'}</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div></div><div class="fields" style="margin-top:10px"><div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div><div class="field"><label>Note</label><input name="note" placeholder="Optional"></div></div><div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,2.5,3,4].map(h=>`<button type="button" class="chip ${cls}" data-fill-hours="${h}">${h}h</button>`).join('')}</div><button class="btn pillar-btn ${cls}" style="margin-top:9px">Add session</button></form></div><div class="card"><div class="section-head"><div><h3>${pillar} totals</h3><p>Tracked time only.</p></div></div><div class="grid g3"><div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div><div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div><div class="metric"><span class="label">All time</span><b>${fmt(all)}h</b></div></div></div></div>${extra}<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Recent ${pillar.toLowerCase()} sessions</h3><p>Newest first.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>${pillar==='Study'?'Subject':'Type'}</th><th>Hours</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`}
+  return `<div class="grid g2"><div class="card pillar ${cls}"><div class="section-head"><div><h3>Add study</h3></div></div><form data-session-form="${pillar}"><div class="fields"><div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div><div class="field"><label>Subject</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div></div><div class="fields" style="margin-top:10px"><div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div><div class="field"><label>Note</label><input name="note" placeholder="Optional"></div></div><div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,2.5,3,4].map(h=>`<button type="button" class="chip ${cls}" data-fill-hours="${h}">${h}h</button>`).join('')}</div><button class="btn pillar-btn ${cls}" style="margin-top:9px">Add</button></form></div><div class="card"><div class="section-head"><div><h3>Totals</h3></div></div><div class="grid g2"><div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div><div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div></div></div></div>${extra}<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Recent</h3></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>Subject</th><th>Hours</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
 function performancePillarHtml(pillar){
   const cls=pillarClass[pillar],week=weekDates(),month=monthDates();
   const w=totalHours(week,pillar),m=totalHours(month,pillar);
@@ -1275,29 +1255,13 @@ function renderTrackingPages(){
 }
 function renderCalculations(){
   document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());
-  const recent=recentScore(),base=baselineScore(),scores=recentWindowScores(28);
-  document.getElementById('trendDiagnostics').innerHTML=`<div class="row"><div class="grow">Recent performance</div><b>${recent===null?'—':fmt(recent,1)}</b></div><div class="row"><div class="grow">Starting baseline</div><b>${base===null?'—':fmt(base,1)}</b></div><div class="row"><div class="grow">28-day volatility</div><b>${scores.length<5?'—':fmt(sd(scores),1)}</b></div><div class="row"><div class="grow">Momentum</div><b>${growth()===null?'—':growth()>3?'↑ Positive':growth()<-3?'↓ Negative':'→ Stable'}</b></div>`;
-  const td=dateRange(iso(),28).filter(hasTarget),logged=td.filter(d=>data.days[d]?.confirmed).length;
-  document.getElementById('dataStatus').innerHTML=`<div class="row"><div class="grow">Reference days in window</div><b>${td.length}</b></div><div class="row"><div class="grow">Confirmed days</div><b>${logged}</b></div><div class="row"><div class="grow">Missing days</div><b>${td.length-logged}</b></div><div class="row"><div class="grow">German starts</div><b>Oct 12</b></div><div class="row"><div class="grow">German weekly load</div><b>5h course + 4h study</b></div><div class="row"><div class="grow">Rule</div><b>Missing ≠ zero</b></div>`;
   document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>{
-    const label=p==='German'?'current week · course attendance + 4h study':'28-day confirmed-target average';
-    return `<div class="row ${pillarClass[p]}"><div class="grow">${p}<div class="tiny">${label}</div></div><b>${pillarRecentCompletion(p)===null?'—':fmt(pillarRecentCompletion(p),0)}</b></div>`;
+    const v=pillarRecentCompletion(p);
+    const label=p==='German'?'course + study':'recent';
+    return `<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">${label}</div></div><b>${v===null?'—':fmt(v,0)+'%'}</b></div>`;
   }).join('');
-  const glossary=[
-    ['Completion','How much of today’s applicable College attendance, BIS Study hours, German course attendance, and Training hours you completed.'],
-    ['Consistency','How strong and stable your completion has been across recent confirmed reference days.'],
-    ['Growth','Whether recent performance is higher or lower than the previous comparable period.'],
-    ['Progress','How much distance you have closed from your starting baseline toward the reference.'],
-    ['Confidence','How complete and mature the data is behind the other calculations.'],
-    ['German','Starts Oct 12. Course = attendance across 5h/week. German self-study = flexible 4h/week. Weekly German coverage combines both.'],['External cancellations','Institution/teacher/coach cancellations are treated as non-applicable, not failures. Individual College/German classes can also be cancelled separately.']
-  ];
-  document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('');
 }
-function renderReference(){
-  document.getElementById('referenceGrid').innerHTML=
-    `<div class="day german"><h4>German</h4><div class="tiny">Starts Oct 12 · 5h course/week + 4h flexible self-study/week</div><div class="event german"><b>Course</b><div>Monday + Thursday · 2.5h each · tracked by attendance</div></div><div class="event german"><b>Self-study</b><div>4h/week · flexible days · tracked in hours</div></div></div>`+
-    Object.entries(reference).map(([d,r])=>`<div class="day"><h4>${d}</h4><div class="tiny">College ${r.college} attendance · Study ${r.study}h · German course ${r.german} attendance · Training ${r.training}h</div>${r.events.map(e=>`<div class="event ${e[2]}"><b>${e[0]}</b><div>${e[1]}</div></div>`).join('')}</div>`).join('');
-}
+function renderReference(){}
 function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderEntries();renderTrackingPages();renderCalculations();renderReference();renderAssistant()}
 
 // Navigation
