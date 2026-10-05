@@ -134,30 +134,37 @@ body{
   .head h1{font-size:23px}
 }
 
+
+.performance-shortcut{--pillar:#63d8e8}.entry-shortcut{--pillar:#ff92b7}
+.performance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.performance-block .metric b{font-size:20px}
+.performance-block .mini-history{margin-top:12px;border-top:1px solid var(--line);padding-top:4px}
+.entry-card{border-left:3px solid #ff92b7}
+.entry-card p{white-space:pre-wrap;margin:8px 0 0}
+@media(max-width:1180px){.performance-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
 <div class="app">
 <aside class="side">
-  <div class="brand"><strong>Hamza</strong><span>College · Study · German · Training</span></div>
+  <div class="brand"><strong>Hamza</strong><span>Performance tracker</span></div>
+
   <div class="nav-group"><div class="nav-label">Home</div><div class="nav">
     <button class="active" data-v="dashboard"><span class="dot"></span>Dashboard</button>
     <button data-v="today"><span class="dot"></span>Today</button>
-    <button data-v="diary"><span class="dot"></span>Diary</button>
   </div></div>
-  <div class="nav-group"><div class="nav-label">Track</div><div class="nav">
-    <button data-v="college"><span class="dot college"></span>College</button>
+
+  <div class="nav-group"><div class="nav-label">Core</div><div class="nav">
     <button data-v="study"><span class="dot study"></span>Study</button>
-    <button data-v="german"><span class="dot german"></span>German</button>
-    <button data-v="training"><span class="dot training"></span>Training</button>
+    <button data-v="calculations"><span class="dot training"></span>Performance</button>
+    <button data-v="diary"><span class="dot"></span>Entries</button>
   </div></div>
-  <div class="nav-group"><div class="nav-label">Analyze</div><div class="nav">
-    <button data-v="calculations"><span class="dot"></span>Calculations</button>
-  </div></div>
+
   <div class="nav-group"><div class="nav-label">System</div><div class="nav">
-    <button data-v="reference"><span class="dot"></span>Reference</button>
-    <button data-v="backup"><span class="dot"></span>Backup</button>
+    <button data-v="reference"><span class="dot"></span>System</button>
   </div></div>
+
   <div class="cloud-box">
     <div class="tiny" id="authState">Local mode · checking cloud…</div>
     <button class="btn small" id="loginBtn">Sign in with Google</button>
@@ -167,22 +174,24 @@ body{
 </aside>
 
 <main>
-<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Four things only: college, studying, German and training.</div></div><div class="top-date" id="dateNow"></div></div>
+<div class="head"><div><h1 id="title">Dashboard</h1><div class="sub" id="subtitle">Study, performance and the few things worth preserving.</div></div><div class="top-date" id="dateNow"></div></div>
 
 <section class="view active" id="dashboard">
   <div class="grid g5" id="headlineScores"></div>
+
   <div class="pillar-shortcuts">
-    <button class="pillar-shortcut college" data-jump="college"><span>College</span><span class="arrow">→</span></button>
     <button class="pillar-shortcut study" data-jump="study"><span>Study</span><span class="arrow">→</span></button>
-    <button class="pillar-shortcut german" data-jump="german"><span>German</span><span class="arrow">→</span></button>
-    <button class="pillar-shortcut training" data-jump="training"><span>Training</span><span class="arrow">→</span></button>
+    <button class="pillar-shortcut performance-shortcut" data-jump="calculations"><span>Performance</span><span class="arrow">→</span></button>
+    <button class="pillar-shortcut entry-shortcut" data-jump="diary"><span>Entries</span><span class="arrow">→</span></button>
   </div>
+
   <div class="grid g2" style="margin-top:12px">
     <div class="card"><div class="section-head"><div><h3>This week</h3><p>Coverage against the reference schedule.</p></div><button class="btn small" data-jump="calculations">Details</button></div><div id="weekCoverage"></div></div>
     <div class="card"><div class="section-head"><div><h3>Today</h3><p>Actual time vs reference target.</p></div><button class="btn small" data-jump="today">Log</button></div><div id="todayCoverage"></div></div>
   </div>
+
   <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Recent diary</h3><p>Automatic day context + your notes.</p></div><button class="btn small" data-jump="diary">Open diary</button></div><div id="recentDiary"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Recent entries</h3><p>Only things you chose to preserve.</p></div><button class="btn small" data-jump="diary">Open entries</button></div><div id="recentDiary"></div></div>
     <div class="card"><div class="section-head"><div><h3>Recent totals</h3><p>Last 28 days by pillar.</p></div></div><div id="recentTotals"></div></div>
   </div>
 </section>
@@ -193,31 +202,24 @@ body{
       <div class="fields"><div class="field"><label>Date</label><input id="activeDate" type="date"></div><div class="field"><label>Reference day</label><input id="activeDayName" disabled></div></div>
       <div id="todayPillars" class="pillars" style="margin-top:12px"></div>
     </div>
-    <div class="card"><div class="section-head"><div><h3>Fast log</h3><p>Add actual time with as little typing as possible.</p></div></div><div class="quick-grid" id="quickLogGrid"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Fast log</h3><p>One-tap presets or a custom duration.</p></div></div><div class="quick-grid" id="quickLogGrid"></div></div>
   </div>
-  <div class="grid g2" style="margin-top:12px">
-    <div class="card"><div class="section-head"><div><h3>Diary note</h3><p>Your activity data is inserted automatically; write only context.</p></div></div><div id="quickDiaryCategory" class="chips"></div><div class="prompt-row" id="quickPrompts"></div><textarea id="quickDiaryText" placeholder="What actually mattered today?"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:9px"><button class="btn" id="addQuickDiary">Add note</button><span class="tiny" id="quickDiaryMsg"></span></div></div>
-    <div class="card"><div class="section-head"><div><h3>Confirm the day</h3><p>Missing data stays missing until you explicitly close the day.</p></div></div><div class="callout"><b>Why confirm?</b> It lets the calculations tell the difference between “I did 0 hours” and “I forgot to log.”</div><button class="btn primary" id="confirmDay" style="margin-top:10px">Confirm day as fully logged</button><details style="margin-top:10px"><summary>Adjust this date's reference targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save date override</button></details></div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-head"><div><h3>Close the day</h3><p>Only confirm when the day's tracking is complete.</p></div></div>
+    <div class="callout"><b>Missing ≠ zero.</b> Confirmation tells the calculations that an unlogged commitment really was zero rather than forgotten.</div>
+    <button class="btn primary" id="confirmDay" style="margin-top:10px">Confirm day as fully logged</button>
+    <details style="margin-top:10px"><summary>Adjust this date's reference targets</summary><div class="fields" id="overrideFields" style="margin-top:10px"></div><button class="btn small" id="saveOverrides" style="margin-top:8px">Save date override</button></details>
   </div>
 </section>
 
-<section class="view" id="diary">
-  <div class="grid g2">
-    <div class="card"><div class="section-head"><div><h3>Write a note</h3><p>Pick a category first; the diary supplies the day context automatically.</p></div></div>
-      <div class="diary-compose"><div class="category-list" id="diaryCategoryList"></div><div><div class="fields"><div class="field"><label>Date</label><input id="diaryDate" type="date"></div><div class="field"><label>Category</label><input id="diaryCategoryDisplay" disabled></div></div><div class="prompt-row" id="diaryPrompts"></div><textarea id="diaryText" placeholder="Write the part that isn't already in the tracker..."></textarea><button class="btn" id="addDiary" style="margin-top:8px">Add diary note</button></div></div>
-    </div>
-    <div class="card"><div class="section-head"><div><h3>Auto context</h3><p>What the diary already knows for the selected date.</p></div></div><div id="diaryAutoContext"></div></div>
-  </div>
-  <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Diary history</h3><p>Search by text or filter by one of the four pillars.</p></div></div><div class="fields"><div class="field"><label>Search</label><input id="diarySearch" placeholder="Search notes..."></div><div class="field"><label>Filter</label><select id="diaryFilter"></select></div></div><div class="diary-list" id="diaryHistory" style="margin-top:12px"></div></div>
-</section>
-
-<section class="view" id="college"><div id="collegePage"></div></section>
 <section class="view" id="study"><div id="studyPage"></div></section>
-<section class="view" id="german"><div id="germanPage"></div></section>
-<section class="view" id="training"><div id="trainingPage"></div></section>
 
 <section class="view" id="calculations">
-  <div class="grid g5" id="calcHeadline"></div>
+  <div class="section-head"><div><h3>College · German · Training</h3><p>All three live here instead of separate pages.</p></div></div>
+  <div class="performance-grid" id="performancePillars"></div>
+
+  <div class="grid g5" id="calcHeadline" style="margin-top:14px"></div>
   <div class="grid g2" style="margin-top:12px">
     <div class="card"><div class="section-head"><div><h3>Routine coverage</h3><p>Current week by pillar.</p></div></div><div id="calcCoverage"></div></div>
     <div class="card"><div class="section-head"><div><h3>Trend diagnostics</h3><p>The supporting numbers behind the headline scores.</p></div></div><div id="trendDiagnostics"></div></div>
@@ -229,12 +231,37 @@ body{
   <div class="card" style="margin-top:12px"><div class="section-head"><div><h3>What the system calculates</h3><p>Five headline metrics; everything else is diagnostic.</p></div></div><div class="grid g3" id="calculationGlossary"></div></div>
 </section>
 
-<section class="view" id="reference">
-  <div class="card"><div class="section-head"><div><h3>GOAT reference schedule</h3><p>A reference point, not a pass/fail timetable.</p></div><span class="tiny">College 12h · Study 17h · German 5h · Training 18h</span></div><div class="scroll"><div class="ref-grid" id="referenceGrid"></div></div></div>
+<section class="view" id="diary">
+  <div class="grid g2">
+    <div class="card">
+      <div class="section-head"><div><h3>New entry</h3><p>No streak. No daily obligation. Write only when something is worth keeping.</p></div></div>
+      <div class="field"><label>Date</label><input id="diaryDate" type="date"></div>
+      <div class="field" style="margin-top:10px"><label>Entry</label><textarea id="diaryText" placeholder="A realization, unusual experience, decision, strong thought, memorable conversation..."></textarea></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:9px"><button class="btn primary" id="addDiary">Save entry</button><span class="tiny" id="entryMsg"></span></div>
+    </div>
+    <div class="card">
+      <div class="section-head"><div><h3>What belongs here?</h3><p>The structured tracker already handles ordinary days.</p></div></div>
+      <div class="callout"><b>Preserve significance, not routine.</b> Use entries for things the tracker cannot capture: realizations, unusual experiences, major changes, decisions, memorable conversations, or thoughts you actually want to revisit.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="section-head"><div><h3>Archive</h3><p>Your preserved entries, newest first.</p></div></div>
+    <div class="field"><label>Search</label><input id="diarySearch" placeholder="Search entries..."></div>
+    <div class="diary-list" id="diaryHistory" style="margin-top:12px"></div>
+  </div>
 </section>
 
-<section class="view" id="backup">
-  <div class="grid g2"><div class="card"><div class="section-head"><div><h3>Backup</h3><p>Stored locally in this browser, with automatic cloud sync when signed in.</p></div></div><button class="btn" id="exportBtn">Export JSON</button> <label class="btn" for="importFile">Import JSON</label><input id="importFile" type="file" accept="application/json" hidden></div><div class="card"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div></div>
+<section class="view" id="reference">
+  <div class="card">
+    <div class="section-head"><div><h3>GOAT reference schedule</h3><p>A benchmark, not a pass/fail timetable.</p></div><span class="tiny">College 12h · Study 17h · German 5h · Training 18h</span></div>
+    <div class="scroll"><div class="ref-grid" id="referenceGrid"></div></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Backup</h3><p>Stored locally, with automatic cloud sync when signed in.</p></div></div><button class="btn" id="exportBtn">Export JSON</button> <label class="btn" for="importFile">Import JSON</label><input id="importFile" type="file" accept="application/json" hidden></div>
+    <div class="card"><div class="section-head"><div><h3>Reset</h3><p>Use only if you want a clean start.</p></div></div><button class="btn danger" id="resetBtn">Reset all data</button></div>
+  </div>
 </section>
 </main>
 </div>
@@ -243,8 +270,8 @@ body{
   <button class="active" data-v="dashboard">Home</button>
   <button data-v="today">Today</button>
   <button data-v="study">Study</button>
-  <button data-v="diary">Diary</button>
-  <button data-v="calculations">Stats</button>
+  <button data-v="calculations">Performance</button>
+  <button data-v="diary">Entries</button>
 </nav>
 
 <script>
@@ -264,8 +291,7 @@ const types={
   German:['Course','Self-study','Practice','Other'],
   Training:['Gymnastics','Mobility','Fitness','Other']
 };
-const diaryCategories=['Day Summary','College','Study','German','Training'];
-const diaryPrompts=['Win','Problem','Learned','Changed','Next step'];
+const diaryCategories=['Entry'];
 const reference={
   Saturday:{college:4,study:2,german:0,training:3,events:[['College','09:00–13:00','college'],['Training','13:00–16:00','training'],['Study','18:00–20:00','study']]},
   Sunday:{college:0,study:2,german:0,training:4,events:[['Study','10:00–12:00','study'],['Training','18:00–22:00','training']]},
@@ -278,8 +304,6 @@ const reference={
 const weeklyTargets={College:12,Study:17,German:5,Training:18};
 let data=loadData();
 let activeDate=iso();
-let quickDiaryCategory='Day Summary';
-let diaryCategory='Day Summary';
 let cloudUser=null;
 let syncTimer=null;
 
@@ -414,46 +438,163 @@ function daySummary(date){const bits=[];PILLARS.forEach(p=>{const h=sessionHours
 function pillarRecentCompletion(pillar){const dates=dateRange(iso(),28).filter(d=>target(d,pillar)>0&&data.days[d]?.confirmed);const vals=dates.map(d=>completionPart(d,pillar)).filter(x=>x!==null);return vals.length>=2?avg(vals):null}
 function addSession(pillar,date,type,hours,note=''){const h=Number(hours);if(!date||!Number.isFinite(h)||h<=0)return false;data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});save();return true}
 function addDiaryEntry(date,category,text){const t=String(text||'').trim();if(!t)return false;data.diary.push({id:uid('d'),date,category,text:t,createdAt:new Date().toISOString()});save();return true}
-function setView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav button,.mobile-dock button').forEach(b=>b.classList.toggle('active',b.dataset.v===id));const titles={dashboard:['Dashboard','College · Study · German · Training, nothing else.'],today:['Today','Fast logging and confirmation.'],diary:['Diary','Automatic context, structured notes.'],college:['College','Lectures and sections.'],study:['Study','BIS study sessions by subject.'],german:['German','Course and independent German work.'],training:['Training','Training sessions and volume.'],calculations:['Calculations','Completion, consistency, growth, progress and confidence.'],reference:['Reference','The GOAT schedule remains a benchmark.'],backup:['Backup','Export, import or reset local data.']};document.getElementById('title').textContent=titles[id][0];document.getElementById('subtitle').textContent=titles[id][1];window.scrollTo({top:0,behavior:'smooth'})}
+function setView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+  document.querySelectorAll('.nav button,.mobile-dock button').forEach(b=>b.classList.toggle('active',b.dataset.v===id));
+  const titles={
+    dashboard:['Dashboard','Study, performance and the few things worth preserving.'],
+    today:['Today','Fast logging and confirmation.'],
+    study:['Study','BIS study sessions by subject.'],
+    calculations:['Performance','College, German, training and all calculations.'],
+    diary:['Entries','An archive, not a daily obligation.'],
+    reference:['System','Reference schedule, backup and reset.']
+  };
+  document.getElementById('title').textContent=titles[id][0];
+  document.getElementById('subtitle').textContent=titles[id][1];
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 function scoreCard(label,value,desc){let shown='—';if(value!==null&&value!==undefined){if(label==='Growth')shown=(value>=0?'+':'')+fmt(value,1)+'%';else shown=fmt(value,0)}return `<div class="card score-card ${label.toLowerCase()}"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`}
 function coverageHtml(items){return PILLARS.map(p=>{const x=items[p],pct=x?.pct??0;return `<div class="row ${pillarClass[p]}"><div class="grow"><div class="progress-meta"><b>${p}</b><span class="tiny">${fmt(x.actual)} / ${fmt(x.target)}h</span></div><div class="progress ${pillarClass[p]}"><span style="width:${pct}%"></span></div></div><b>${x.target?Math.round(pct)+'%':'—'}</b></div>`}).join('')}
 function renderHeadline(){const s=scoreSet();document.getElementById('headlineScores').innerHTML=[scoreCard('Completion',s.Completion,'today'),scoreCard('Consistency',s.Consistency,'recent reliability'),scoreCard('Growth',s.Growth,'recent vs prior'),scoreCard('Progress',s.Progress,'from baseline'),scoreCard('Confidence',s.Confidence,'data quality')].join('');document.getElementById('calcHeadline').innerHTML=document.getElementById('headlineScores').innerHTML}
 function renderDashboard(){document.getElementById('weekCoverage').innerHTML=coverageHtml(weekCoverage());const today={};PILLARS.forEach(p=>{const t=target(iso(),p),a=sessionHours(iso(),p);today[p]={actual:a,target:t,pct:t?clamp(a/t*100,0,100):null}});document.getElementById('todayCoverage').innerHTML=coverageHtml(today);
-  const recent=[...data.diary].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,5);document.getElementById('recentDiary').innerHTML=recent.length?recent.map(n=>`<div class="row"><div class="grow"><b>${escapeHtml(n.category)}</b><div class="tiny">${prettyDate(n.date)} · ${escapeHtml(n.text.slice(0,80))}${n.text.length>80?'…':''}</div></div></div>`).join(''):'<div class="empty">No diary notes yet.</div>';
+  const recent=[...data.diary].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,5);document.getElementById('recentDiary').innerHTML=recent.length?recent.map(n=>`<div class="row"><div class="grow"><b>${prettyDate(n.date)}</b><div class="tiny">${escapeHtml(n.text.slice(0,90))}${n.text.length>90?'…':''}</div></div></div>`).join(''):'<div class="empty">No entries yet.</div>';
   const ds=dateRange(iso(),28);document.getElementById('recentTotals').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow"><b>${p}</b><div class="tiny">last 28 days</div></div><b>${fmt(totalHours(ds,p))}h</b></div>`).join('')}
 function quickTypeOptions(pillar,date){if(pillar==='Study')return subjects.filter(x=>x!=='Custom');if(pillar==='College'){const dn=dayName(date);if(dn==='Thursday')return ['Section','Lecture','Other'];return ['Lecture','Section','Other']}return types[pillar]}
-function renderToday(){document.getElementById('activeDate').value=activeDate;document.getElementById('activeDayName').value=dayName(activeDate);document.getElementById('daySaveStatus').textContent=data.days[activeDate]?.confirmed?'Confirmed':'Not confirmed';
-  document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{const t=target(activeDate,p),a=sessionHours(activeDate,p),pct=t?clamp(a/t*100,0,100):null;return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${fmt(a)}h</b><div class="tiny">${t?`reference ${fmt(t)}h · ${Math.round(pct)}%`:'no reference target'}</div></div>`}).join('');
+function renderToday(){
+  document.getElementById('activeDate').value=activeDate;
+  document.getElementById('activeDayName').value=dayName(activeDate);
+  document.getElementById('daySaveStatus').textContent=data.days[activeDate]?.confirmed?'Confirmed':'Not confirmed';
+
+  document.getElementById('todayPillars').innerHTML=PILLARS.map(p=>{
+    const t=target(activeDate,p),a=sessionHours(activeDate,p),pct=t?clamp(a/t*100,0,100):null;
+    return `<div class="pillar-mini ${pillarClass[p]}"><div class="name"><span class="dot"></span>${p}</div><b>${fmt(a)}h</b><div class="tiny">${t?`reference ${fmt(t)}h · ${Math.round(pct)}%`:'no reference target'}</div></div>`;
+  }).join('');
+
   document.getElementById('quickLogGrid').innerHTML=PILLARS.map(p=>`<div class="quick-card ${pillarClass[p]}"><h4>${p}</h4><div class="tiny">${target(activeDate,p)?`Reference ${fmt(target(activeDate,p))}h`:'No target today — logging still allowed'}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.1" step="0.25" placeholder="custom hours"><button class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div></div>`).join('');
-  document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{const [p,h]=b.dataset.quickHours.split('|');document.getElementById('quickHours'+p).value=h;b.closest('.quick-hours').querySelectorAll('.quick-hour').forEach(x=>x.classList.toggle('selected',x===b))});
-  document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>{const p=b.dataset.quickAdd;if(addSession(p,activeDate,document.getElementById('quickType'+p).value,document.getElementById('quickHours'+p).value)){document.getElementById('quickHours'+p).value='';renderAll()}});
-  document.getElementById('quickDiaryCategory').innerHTML=diaryCategories.map(c=>`<button type="button" class="chip ${pillarClass[c]||''} ${c===quickDiaryCategory?'active':''}" data-qcat="${c}">${c}</button>`).join('');document.querySelectorAll('[data-qcat]').forEach(b=>b.onclick=()=>{quickDiaryCategory=b.dataset.qcat;renderToday()});
-  document.getElementById('quickPrompts').innerHTML=diaryPrompts.map(p=>`<button type="button" data-qprompt="${p}">${p}</button>`).join('');document.querySelectorAll('[data-qprompt]').forEach(b=>b.onclick=()=>{const ta=document.getElementById('quickDiaryText');ta.value=(ta.value?ta.value+'\n':'')+b.dataset.qprompt+': ';ta.focus()});
-  document.getElementById('overrideFields').innerHTML=PILLARS.map(p=>`<div class="field"><label>${p} target hours</label><input data-override="${p}" type="number" min="0" step="0.25" value="${target(activeDate,p)}"></div>`).join('')}
-function renderDiaryCategories(){document.getElementById('diaryCategoryList').innerHTML=diaryCategories.map(c=>`<button type="button" class="${pillarClass[c]||''} ${c===diaryCategory?'active':''}" data-dcat="${c}">${c}</button>`).join('');document.querySelectorAll('[data-dcat]').forEach(b=>b.onclick=()=>{diaryCategory=b.dataset.dcat;renderDiaryCategories()});document.getElementById('diaryCategoryDisplay').value=diaryCategory}
-function renderDiaryAutoContext(){const date=document.getElementById('diaryDate').value||iso(),bits=daySummary(date);const score=dailyScore(date);document.getElementById('diaryAutoContext').innerHTML=`<div class="auto-summary">${bits.length?bits.map(x=>`<span class="summary-pill">${escapeHtml(x)}</span>`).join(''):'<span class="summary-pill">No tracked activity yet</span>'}${score!==null?`<span class="summary-pill">Completion ${Math.round(score)}</span>`:''}</div><div class="tiny" style="margin-top:9px">This context is generated from your logs automatically. You do not need to rewrite it in the diary.</div>`}
-function renderDiary(){renderDiaryCategories();renderDiaryAutoContext();document.getElementById('diaryPrompts').innerHTML=diaryPrompts.map(p=>`<button type="button" data-dprompt="${p}">${p}</button>`).join('');document.querySelectorAll('[data-dprompt]').forEach(b=>b.onclick=()=>{const ta=document.getElementById('diaryText');ta.value=(ta.value?ta.value+'\n':'')+b.dataset.dprompt+': ';ta.focus()});
-  const q=document.getElementById('diarySearch').value.trim().toLowerCase(),filter=document.getElementById('diaryFilter').value;const dates=new Set([...Object.keys(data.days),...PILLARS.flatMap(p=>data.sessions[p].map(x=>x.date)),...data.diary.map(x=>x.date)]);let ordered=[...dates].sort().reverse();const html=[];for(const date of ordered){const notes=data.diary.filter(x=>x.date===date).filter(n=>(!filter||n.category===filter)&&(!q||n.text.toLowerCase().includes(q)||n.category.toLowerCase().includes(q)));if((filter||q)&&!notes.length)continue;const bits=daySummary(date);html.push(`<article class="diary-day"><div class="diary-head"><div><b>${prettyDate(date)}</b><div class="tiny">${data.days[date]?.confirmed?'Day confirmed':'Day not confirmed'}</div></div>${dailyScore(date)!==null?`<span class="badge">${Math.round(dailyScore(date))} completion</span>`:''}</div><div class="auto-summary" style="margin-top:9px">${bits.map(x=>`<span class="summary-pill">${escapeHtml(x)}</span>`).join('')}</div>${notes.map(n=>`<div class="note ${pillarClass[n.category]||''}"><div class="note-head"><span class="note-cat">${escapeHtml(n.category)}</span><button class="btn small ghost" data-del-note="${n.id}">Delete</button></div><p>${escapeHtml(n.text)}</p></div>`).join('')}</article>`)}document.getElementById('diaryHistory').innerHTML=html.join('')||'<div class="empty">No diary entries match this filter.</div>';document.querySelectorAll('[data-del-note]').forEach(b=>b.onclick=()=>{data.diary=data.diary.filter(x=>x.id!==b.dataset.delNote);save();renderAll()})}
+
+  document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
+    const [p,h]=b.dataset.quickHours.split('|');
+    document.getElementById('quickHours'+p).value=h;
+    b.closest('.quick-hours').querySelectorAll('.quick-hour').forEach(x=>x.classList.toggle('selected',x===b));
+  });
+  document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>{
+    const p=b.dataset.quickAdd;
+    if(addSession(p,activeDate,document.getElementById('quickType'+p).value,document.getElementById('quickHours'+p).value)){
+      document.getElementById('quickHours'+p).value='';
+      renderAll();
+    }
+  });
+
+  document.getElementById('overrideFields').innerHTML=PILLARS.map(p=>`<div class="field"><label>${p} target hours</label><input data-override="${p}" type="number" min="0" step="0.25" value="${target(activeDate,p)}"></div>`).join('');
+}
+function renderEntries(){
+  const q=(document.getElementById('diarySearch')?.value||'').trim().toLowerCase();
+  const entries=[...data.diary]
+    .filter(n=>!q||String(n.text||'').toLowerCase().includes(q)||String(n.category||'').toLowerCase().includes(q))
+    .sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt)));
+
+  document.getElementById('diaryHistory').innerHTML=entries.length?entries.map(n=>{
+    const legacy=n.category&&n.category!=='Entry'? `<span class="badge">${escapeHtml(n.category)}</span>` : '';
+    return `<article class="diary-day entry-card"><div class="diary-head"><div><b>${prettyDate(n.date)}</b></div>${legacy}</div><p>${escapeHtml(n.text||'')}</p><div style="margin-top:8px"><button class="btn small ghost" data-del-note="${n.id}">Delete</button></div></article>`;
+  }).join(''):'<div class="empty">Nothing preserved yet.</div>';
+
+  document.querySelectorAll('[data-del-note]').forEach(b=>b.onclick=()=>{
+    data.diary=data.diary.filter(x=>x.id!==b.dataset.delNote);
+    save();renderAll();
+  });
+}
 function sessionPageHtml(pillar){const cls=pillarClass[pillar],week=weekDates(),month=monthDates(),all=data.sessions[pillar].reduce((s,x)=>s+Number(x.hours||0),0),w=totalHours(week,pillar),m=totalHours(month,pillar);let extra='';if(pillar==='Study'){const by={};data.sessions.Study.filter(x=>month.includes(x.date)).forEach(x=>by[x.type]=(by[x.type]||0)+Number(x.hours||0));extra=`<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>This month by subject</h3><p>Automatic subject breakdown.</p></div></div>${Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="row"><div class="grow">${escapeHtml(k)}</div><b>${fmt(v)}h</b></div>`).join(''):'<div class="empty">No study data this month.</div>'}</div>`}
   const rows=[...data.sessions[pillar]].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,60).map(x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.type)}</td><td>${fmt(x.hours)}h</td><td>${escapeHtml(x.note||'')}</td><td><button class="btn small" data-del-session="${pillar}|${x.id}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="muted">No sessions yet.</td></tr>';
   return `<div class="grid g2"><div class="card pillar ${cls}"><div class="section-head"><div><h3>Add ${pillar.toLowerCase()} session</h3><p>Fast entry; details are optional.</p></div></div><form data-session-form="${pillar}"><div class="fields"><div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div><div class="field"><label>${pillar==='Study'?'Subject':'Type'}</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div></div><div class="fields" style="margin-top:10px"><div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div><div class="field"><label>Note</label><input name="note" placeholder="Optional"></div></div><div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,2.5,3,4].map(h=>`<button type="button" class="chip ${cls}" data-fill-hours="${h}">${h}h</button>`).join('')}</div><button class="btn pillar-btn ${cls}" style="margin-top:9px">Add session</button></form></div><div class="card"><div class="section-head"><div><h3>${pillar} totals</h3><p>Tracked time only.</p></div></div><div class="grid g3"><div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div><div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div><div class="metric"><span class="label">All time</span><b>${fmt(all)}h</b></div></div></div></div>${extra}<div class="card" style="margin-top:12px"><div class="section-head"><div><h3>Recent ${pillar.toLowerCase()} sessions</h3><p>Newest first.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Date</th><th>${pillar==='Study'?'Subject':'Type'}</th><th>Hours</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`}
-function renderPillarPages(){PILLARS.forEach(p=>{document.getElementById(p.toLowerCase()+'Page').innerHTML=sessionPageHtml(p)});document.querySelectorAll('[data-session-form]').forEach(form=>form.addEventListener('submit',e=>{e.preventDefault();const p=form.dataset.sessionForm,fd=new FormData(form);if(addSession(p,fd.get('date'),fd.get('type'),fd.get('hours'),fd.get('note'))){form.querySelector('[name="hours"]').value='';form.querySelector('[name="note"]').value='';renderAll()}}));document.querySelectorAll('[data-fill-hours]').forEach(b=>b.onclick=()=>{const form=b.closest('form');form.querySelector('[name="hours"]').value=b.dataset.fillHours});document.querySelectorAll('[data-del-session]').forEach(b=>b.onclick=()=>{const [p,id]=b.dataset.delSession.split('|');data.sessions[p]=data.sessions[p].filter(x=>x.id!==id);save();renderAll()})}
+function performancePillarHtml(pillar){
+  const cls=pillarClass[pillar],week=weekDates(),month=monthDates();
+  const w=totalHours(week,pillar),m=totalHours(month,pillar);
+  const recent=[...data.sessions[pillar]].sort((a,b)=>b.date.localeCompare(a.date)||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,6);
+
+  return `<div class="card pillar performance-block ${cls}">
+    <div class="section-head"><div><h3>${pillar}</h3><p>Log + recent activity.</p></div></div>
+    <div class="grid g2">
+      <div class="metric"><span class="label">Week</span><b>${fmt(w)}h</b></div>
+      <div class="metric"><span class="label">Month</span><b>${fmt(m)}h</b></div>
+    </div>
+    <form data-session-form="${pillar}" style="margin-top:12px">
+      <div class="fields">
+        <div class="field"><label>Date</label><input name="date" type="date" value="${iso()}" required></div>
+        <div class="field"><label>Type</label><select name="type">${types[pillar].map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select></div>
+      </div>
+      <div class="fields" style="margin-top:8px">
+        <div class="field"><label>Hours</label><input name="hours" type="number" min="0.1" step="0.25" required></div>
+        <div class="field"><label>Note</label><input name="note" placeholder="Optional"></div>
+      </div>
+      <div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-fill-hours="${h}">${h}h</button>`).join('')}</div>
+      <button class="btn pillar-btn ${cls}" style="margin-top:9px">Add</button>
+    </form>
+    <div class="mini-history">
+      ${recent.length?recent.map(x=>`<div class="row"><div class="grow"><b>${escapeHtml(x.type)}</b><div class="tiny">${prettyDate(x.date)}${x.note?' · '+escapeHtml(x.note):''}</div></div><b>${fmt(x.hours)}h</b><button class="btn small ghost" data-del-session="${pillar}|${x.id}">×</button></div>`).join(''):'<div class="empty">No sessions yet.</div>'}
+    </div>
+  </div>`;
+}
+
+function bindSessionControls(){
+  document.querySelectorAll('[data-session-form]').forEach(form=>form.addEventListener('submit',e=>{
+    e.preventDefault();
+    const p=form.dataset.sessionForm,fd=new FormData(form);
+    if(addSession(p,fd.get('date'),fd.get('type'),fd.get('hours'),fd.get('note'))){
+      form.querySelector('[name="hours"]').value='';
+      form.querySelector('[name="note"]').value='';
+      renderAll();
+    }
+  }));
+  document.querySelectorAll('[data-fill-hours]').forEach(b=>b.onclick=()=>{
+    const form=b.closest('form');
+    form.querySelector('[name="hours"]').value=b.dataset.fillHours;
+    form.querySelectorAll('[data-fill-hours]').forEach(x=>x.classList.toggle('selected',x===b));
+  });
+  document.querySelectorAll('[data-del-session]').forEach(b=>b.onclick=()=>{
+    const [p,id]=b.dataset.delSession.split('|');
+    data.sessions[p]=data.sessions[p].filter(x=>x.id!==id);
+    save();renderAll();
+  });
+}
+
+function renderTrackingPages(){
+  document.getElementById('studyPage').innerHTML=sessionPageHtml('Study');
+  document.getElementById('performancePillars').innerHTML=['College','German','Training'].map(performancePillarHtml).join('');
+  bindSessionControls();
+}
 function renderCalculations(){document.getElementById('calcCoverage').innerHTML=coverageHtml(weekCoverage());const recent=recentScore(),base=baselineScore(),scores=recentWindowScores(28);document.getElementById('trendDiagnostics').innerHTML=`<div class="row"><div class="grow">Recent performance</div><b>${recent===null?'—':fmt(recent,1)}</b></div><div class="row"><div class="grow">Starting baseline</div><b>${base===null?'—':fmt(base,1)}</b></div><div class="row"><div class="grow">28-day volatility</div><b>${scores.length<5?'—':fmt(sd(scores),1)}</b></div><div class="row"><div class="grow">Momentum</div><b>${growth()===null?'—':growth()>3?'↑ Positive':growth()<-3?'↓ Negative':'→ Stable'}</b></div>`;
   const td=dateRange(iso(),28).filter(hasTarget),logged=td.filter(d=>data.days[d]?.confirmed).length;document.getElementById('dataStatus').innerHTML=`<div class="row"><div class="grow">Reference days in window</div><b>${td.length}</b></div><div class="row"><div class="grow">Confirmed days</div><b>${logged}</b></div><div class="row"><div class="grow">Missing days</div><b>${td.length-logged}</b></div><div class="row"><div class="grow">Rule</div><b>Missing ≠ zero</b></div>`;
   document.getElementById('pillarForm').innerHTML=PILLARS.map(p=>`<div class="row ${pillarClass[p]}"><div class="grow">${p}<div class="tiny">28-day confirmed-target average</div></div><b>${pillarRecentCompletion(p)===null?'—':fmt(pillarRecentCompletion(p),0)}</b></div>`).join('');
   const glossary=[['Completion','How much of today’s applicable college / study / German / training reference you completed.'],['Consistency','How strong and stable your completion has been across recent confirmed reference days.'],['Growth','Whether recent performance is higher or lower than the previous comparable period.'],['Progress','How much distance you have closed from your starting baseline toward the reference.'],['Confidence','How complete and mature the data is behind the other calculations.'],['Diagnostics','Per-pillar coverage, recent form, volatility and momentum explain why the headline numbers moved.']];document.getElementById('calculationGlossary').innerHTML=glossary.map(([a,b])=>`<div class="card soft"><b>${a}</b><div class="tiny" style="margin-top:4px">${b}</div></div>`).join('')}
 function renderReference(){document.getElementById('referenceGrid').innerHTML=Object.entries(reference).map(([d,r])=>`<div class="day"><h4>${d}</h4><div class="tiny">College ${r.college}h · Study ${r.study}h · German ${r.german}h · Training ${r.training}h</div>${r.events.map(e=>`<div class="event ${e[2]}"><b>${e[0]}</b><div>${e[1]}</div></div>`).join('')}</div>`).join('')}
-function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderDiary();renderPillarPages();renderCalculations();renderReference()}
+function renderAll(){document.getElementById('dateNow').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric',year:'numeric'});renderHeadline();renderDashboard();renderToday();renderEntries();renderTrackingPages();renderCalculations();renderReference()}
 
 // Navigation
 [...document.querySelectorAll('.nav button,.mobile-dock button')].forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));[...document.querySelectorAll('[data-jump]')].forEach(b=>b.addEventListener('click',()=>setView(b.dataset.jump)));
 // Today
-const activeDateInput=document.getElementById('activeDate');activeDateInput.addEventListener('change',e=>{activeDate=e.target.value||iso();renderToday()});
-document.getElementById('confirmDay').addEventListener('click',()=>{data.days[activeDate]={...(data.days[activeDate]||{}),confirmed:true,confirmedAt:new Date().toISOString()};save();renderAll()});
-document.getElementById('saveOverrides').addEventListener('click',()=>{const o={};document.querySelectorAll('[data-override]').forEach(i=>o[i.dataset.override]=Number(i.value)||0);data.days[activeDate]={...(data.days[activeDate]||{}),overrides:o};save();renderAll()});
-document.getElementById('addQuickDiary').addEventListener('click',()=>{const ok=addDiaryEntry(activeDate,quickDiaryCategory,document.getElementById('quickDiaryText').value);document.getElementById('quickDiaryMsg').textContent=ok?'Added.':'Write something first.';if(ok){document.getElementById('quickDiaryText').value='';renderAll()}});
-// Diary
-const diaryFilter=document.getElementById('diaryFilter');diaryFilter.innerHTML='<option value="">All categories</option>'+diaryCategories.map(c=>`<option>${c}</option>`).join('');document.getElementById('diaryDate').value=iso();document.getElementById('diaryDate').addEventListener('change',renderDiaryAutoContext);document.getElementById('addDiary').addEventListener('click',()=>{if(addDiaryEntry(document.getElementById('diaryDate').value||iso(),diaryCategory,document.getElementById('diaryText').value)){document.getElementById('diaryText').value='';renderAll()}});document.getElementById('diarySearch').addEventListener('input',renderDiary);diaryFilter.addEventListener('change',renderDiary);
+const activeDateInput=document.getElementById('activeDate');
+activeDateInput.addEventListener('change',e=>{activeDate=e.target.value||iso();renderToday()});
+document.getElementById('confirmDay').addEventListener('click',()=>{
+  data.days[activeDate]={...(data.days[activeDate]||{}),confirmed:true,confirmedAt:new Date().toISOString()};
+  save();renderAll();
+});
+document.getElementById('saveOverrides').addEventListener('click',()=>{
+  const o={};
+  document.querySelectorAll('[data-override]').forEach(i=>o[i.dataset.override]=Number(i.value)||0);
+  data.days[activeDate]={...(data.days[activeDate]||{}),overrides:o};
+  save();renderAll();
+});
+
+// Entries
+document.getElementById('diaryDate').value=iso();
+document.getElementById('addDiary').addEventListener('click',()=>{
+  const text=document.getElementById('diaryText').value;
+  const ok=addDiaryEntry(document.getElementById('diaryDate').value||iso(),'Entry',text);
+  document.getElementById('entryMsg').textContent=ok?'Saved.':'Write something first.';
+  if(ok){document.getElementById('diaryText').value='';renderAll();}
+});
+document.getElementById('diarySearch').addEventListener('input',renderEntries);
+
 // Backup
  document.getElementById('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`hamza-performance-tracker-${iso()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),500)});
 document.getElementById('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{data=normalize(JSON.parse(await f.text()));save();renderAll();alert('Imported successfully.')}catch(err){alert('Invalid backup file.')}e.target.value=''});
