@@ -590,7 +590,7 @@ function telemetryPayload(){
     german_attendance_pct:german.rate,
     german_study_hours_28d:totalGermanStudyHours(ds),
     training_attendance_pct:training.rate,
-    training_hours_28d:0
+    training_hours_28d:totalHours(ds,'Training')
   };
 }
 function queueTelemetry(){
@@ -612,7 +612,7 @@ async function loadAdmin(){
   const box=document.getElementById('adminUsers'),summary=document.getElementById('adminSummary');
   if(box)box.innerHTML='<div class="empty">Loading…</div>';
   const {data:rows,error}=await cloud.from('performance_telemetry')
-    .select('user_key,updated_at,attendance_score,growth,progress,college_attendance_pct,study_hours_28d,german_attendance_pct,german_study_hours_28d,training_attendance_pct')
+    .select('user_key,updated_at,attendance_score,growth,progress,college_attendance_pct,study_hours_28d,german_attendance_pct,german_study_hours_28d,training_attendance_pct,training_hours_28d')
     .order('updated_at',{ascending:false});
   if(error){if(box)box.innerHTML='<div class="empty">Could not load analytics.</div>';return}
   const todayIso=iso();
@@ -637,6 +637,7 @@ async function loadAdmin(){
       <div class="admin-metric"><span>Training</span><b>${pct(r.training_attendance_pct)}</b></div>
       <div class="admin-metric"><span>Study · 28d</span><b>${fmt(r.study_hours_28d)}h</b></div>
       <div class="admin-metric"><span>German study · 28d</span><b>${fmt(r.german_study_hours_28d)}h</b></div>
+      <div class="admin-metric"><span>Training hours · 28d</span><b>${fmt(r.training_hours_28d)}h</b></div>
       <div class="admin-metric"><span>Growth</span><b>${r.growth===null||r.growth===undefined?'—':(Number(r.growth)>=0?'+':'')+fmt(r.growth,1)+' pts'}</b></div>
       <div class="admin-metric"><span>Progress</span><b>${r.progress===null||r.progress===undefined?'—':(Number(r.progress)>=0?'+':'')+fmt(r.progress,1)+' pts'}</b></div>
     </div>
@@ -659,7 +660,7 @@ function assistantContext(){
         training:attendanceCounts(week,'Training')
       }
     },
-    last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds)},
+    last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalHours(ds,'Training')},
     selectedDateAttendance:attendance,
     selectedDateExceptions:data.days?.[activeDate]?.exceptions||{},
     recentStudy,
@@ -974,7 +975,7 @@ function daySummary(date){
 function addSession(pillar,date,type,hours,note=''){
   const h=parseHours(hours);
   if(!date||h===null)return false;
-  if(!['Study','German'].includes(pillar))return false;
+  if(!['Study','German','Training'].includes(pillar))return false;
   if(pillar==='German'&&!germanActive(date))return false;
   data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});
   save();return true;
@@ -1042,7 +1043,7 @@ function renderToday(){
     `<div class="pillar-mini college"><div class="name"><span class="dot"></span>College</div><b>${isExternallyCancelled(activeDate,'College')?'Called off':college.tracked?college.present+'/'+college.tracked+' attended':college.scheduled?college.unlogged+' unlogged':'No college'}</b></div>`,
     `<div class="pillar-mini study"><div class="name"><span class="dot"></span>Study</div><b>${fmt(sessionHours(activeDate,'Study'))}h</b><div class="tiny">not scored</div></div>`,
     `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${!germanActive(activeDate)?'Starts Oct 12':isExternallyCancelled(activeDate,'German')?'Course called off':german.tracked?german.present+'/'+german.tracked+' course':german.scheduled?german.unlogged+' course unlogged':'No course'}</b><div class="tiny">${germanActive(activeDate)?fmt(germanStudyHours(activeDate))+'h study · not scored':''}</div></div>`,
-    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${trainingAttendanceStatus(activeDate)==='present'?'Attended':!trainingExpected(activeDate)?'No training planned':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b>${!trainingExpected(activeDate)&&trainingAttendanceStatus(activeDate)!=='present'?'<div class="tiny">Optional today</div>':''}</div>`
+    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${trainingAttendanceStatus(activeDate)==='present'?'Attended':!trainingExpected(activeDate)?'No training planned':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b><div class="tiny">${fmt(sessionHours(activeDate,'Training'))}h logged · hours not scored${!trainingExpected(activeDate)&&trainingAttendanceStatus(activeDate)!=='present'?' · optional today':''}</div></div>`
   ].join('');
 
   const exceptionCandidates=[
@@ -1116,10 +1117,10 @@ function renderToday(){
     renderAll();
   });
 
-  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[])];
+  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
-    const sub=p==='German'?'German self-study · not scored':'Study time · not scored';
-    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="custom hours"><button type="button" class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div><div class="tiny" id="quickMsg${p}" style="margin-top:6px"></div></div>`;
+    const sub=p==='German'?'German self-study · not scored':p==='Training'?'Optional training hours · not scored':'Study time · not scored';
+    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p==='Training'?'Training hours':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="custom hours"><button type="button" class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div><div class="tiny" id="quickMsg${p}" style="margin-top:6px"></div></div>`;
   }).join('');
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
     const [p,h]=b.dataset.quickHours.split('|');
@@ -1140,12 +1141,12 @@ function renderToday(){
     }else if(msg)msg.textContent='Could not save.';
   };
   document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>submitQuickHours(b.dataset.quickAdd));
-  ['Study',...(germanActive(activeDate)?['German']:[])].forEach(p=>{
+  ['Study',...(germanActive(activeDate)?['German']:[]),'Training'].forEach(p=>{
     const input=document.getElementById('quickHours'+p);
     if(input)input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();submitQuickHours(p)}};
   });
 
-  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[])];
+  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
   const sessions=editablePillars.flatMap(p=>data.sessions[p]
     .filter(x=>x.date===activeDate&&(p!=='German'||String(x.type||'').toLowerCase()!=='course'))
     .map(x=>({...x,pillar:p})))
@@ -1156,7 +1157,7 @@ function renderToday(){
     if(!opts.includes(x.type))opts.unshift(x.type);
     return `<div class="session-edit-card ${pillarClass[x.pillar]}" data-session-card="${x.pillar}|${x.id}">
       <div class="session-edit-head">
-        <div><b>${x.pillar==='German'?'German study':'Study'} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
+        <div><b>${x.pillar==='German'?'German study':x.pillar==='Training'?'Training':'Study'} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
         <span class="badge">${fmt(x.hours)}h</span>
       </div>
       <details>
@@ -1173,7 +1174,7 @@ function renderToday(){
         </div>
       </details>
     </div>`;
-  }).join(''):'<div class="empty">No study hours logged on this date.</div>';
+  }).join(''):'<div class="empty">No Study, German study, or Training hours logged on this date.</div>';
 
   document.querySelectorAll('[data-save-session]').forEach(b=>b.onclick=()=>{
     const [p,id]=b.dataset.saveSession.split('|');
@@ -1290,7 +1291,7 @@ function renderCalculations(){
   const rows=[
     ['College',college.tracked?`${college.present}/${college.tracked} · ${Math.round(college.rate)}%`:college.unlogged?`${college.unlogged} unlogged`:'—','college'],
     ['German course',german.tracked?`${german.present}/${german.tracked} · ${Math.round(german.rate)}%`:germanActive(iso())?(german.unlogged?`${german.unlogged} unlogged`:'—'):'Starts Oct 12','german'],
-    ['Training',training.tracked?`${training.present}/${training.tracked} · ${Math.round(training.rate)}%`:'—','training'],
+    ['Training',`${training.tracked?training.present+'/'+training.tracked+' · '+Math.round(training.rate)+'%':'—'} · ${fmt(totalHours(ds,'Training'))}h / 28d`,'training'],
     ['Study',`${fmt(totalHours(ds,'Study'))}h · 28d / ${fmt(studyAll)}h all time`,'study'],
     ['German study',germanActive(iso())?`${fmt(totalGermanStudyHours(ds))}h · 28d / ${fmt(germanStudyAll)}h all time`:'Starts Oct 12','german']
   ];
