@@ -105,7 +105,7 @@ function recentContext(payload, selectedDate) {
   cutoff.setUTCDate(cutoff.getUTCDate()-45);
   const cutoffDate = cutoff.toISOString().slice(0,10);
   const sessions = {};
-  for (const p of ['Study','German']) {
+  for (const p of ['Study','German','Training']) {
     sessions[p] = (payload.sessions?.[p] || [])
       .filter(x => validDate(x?.date) && x.date >= cutoffDate && (p !== 'German' || String(x?.type || '').toLowerCase() !== 'course'))
       .map(x => ({id:x.id,date:x.date,type:x.type,hours:Number(x.hours)||0}));
@@ -133,6 +133,7 @@ function recentContext(payload, selectedDate) {
       training:'attendance-based. Default training days are Saturday, Sunday, Tuesday, Wednesday, and Thursday. Monday and Friday are not expected by default, but if the user explicitly trains on either day, log Training as present and count it as an extra attended training. No hour target.',
       study:'hours are logged for information only and never scored',
       germanStudy:'hours are logged for information only and never scored; starts 2026-10-12',
+      trainingHours:'optional hours may be logged for information only and never affect attendance or performance scores',
       calledOff:'cancelled-by-institution/teacher/coach items are excluded from scores',
       missing:'unlogged is missing, not zero'
     }
@@ -233,21 +234,21 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'add_session') {
     if (!validDate(date)) return {ok:false,error:'Invalid session date.'};
-    if (!['Study','German'].includes(op.pillar)) return {ok:false,error:'Only Study and German self-study use hour sessions. Training is attendance-only.'};
+    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Only Study, German self-study, and optional Training hours use hour sessions.'};
     if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German study tracking starts on 2026-10-12.'};
     const h = num(op.hours);
     if (h === null || h <= 0 || h > 24) return {ok:false,error:'Hours must be between 0 and 24.'};
-    const defaultType = op.pillar === 'Study' ? 'Custom' : 'Self-study';
+    const defaultType = op.pillar === 'Study' ? 'Custom' : op.pillar === 'German' ? 'Self-study' : 'Other';
     let type = String(op.activity_type || defaultType).slice(0,80);
     if (op.pillar === 'German' && type.toLowerCase() === 'course') type = 'Self-study';
-    const prefix = op.pillar === 'Study' ? 's' : 'g';
+    const prefix = op.pillar === 'Study' ? 's' : op.pillar === 'German' ? 'g' : 't';
     const row = {id:uid(prefix),date,type,hours:h,note:'',createdAt:new Date().toISOString()};
     payload.sessions[op.pillar].push(row);
     return {ok:true,summary:`Added ${h}h ${op.pillar === 'German' ? 'German study' : op.pillar} (${type}) on ${date}`,session_id:row.id};
   }
 
   if (action === 'update_session') {
-    if (!['Study','German'].includes(op.pillar)) return {ok:false,error:'Only Study and German self-study have hour sessions.'};
+    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Study, German self-study, and optional Training hours have hour sessions.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
     if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is tracked by attendance, not an hourly session.'};
@@ -271,7 +272,7 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'delete_session') {
     if (!explicitDelete) return {ok:false,error:'Session deletion requires the user to explicitly say delete/remove.'};
-    if (!['Study','German'].includes(op.pillar)) return {ok:false,error:'Only Study and German self-study have hour sessions.'};
+    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Study, German self-study, and optional Training hours have hour sessions.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
     if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is attendance-based and cannot be deleted as an hourly study session.'};
@@ -334,7 +335,7 @@ export default async function handler(req,res) {
       'There is NO fixed reference schedule, daily hour requirement, weekly hour target, points requirement, or target override in scoring.',
       'College attendance comes from the actual College lecture/section schedule. German course attendance starts on 2026-10-12. Default Training days are Saturday, Sunday, Tuesday, Wednesday, and Thursday. There is no default Training on Monday or Friday. Use item_id training-session for Training attendance.',
       'If the user says they trained, mark Training present even on Monday or Friday; those days are optional extras rather than expected sessions. If they skipped a planned default Training day, mark it absent. If the coach/gym called off a default Training day, mark it cancelled/external and it must not hurt the score. Never mark Monday or Friday missed/cancelled merely because no Training happened there.',
-      'Study and German self-study may be logged in hours when the user gives the hours. Never invent their hours, and never turn them into performance points.',
+      'Study, German self-study, and Training may be logged in hours when the user gives the hours. Training hours are optional. Never invent hours, and never turn any hour log into performance points. Training attendance and Training hours are separate fields.',
       'Never invent attendance, dates, subjects, or hours. Ask one concise clarification when a needed fact is missing.',
       'Only delete a study session if the user explicitly asks to delete/remove it.',
       'Never create German course attendance or German self-study records before 2026-10-12.',
