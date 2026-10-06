@@ -517,6 +517,7 @@ const GERMAN_START='2026-10-12';
 const GERMAN_COURSE_WEEKLY_HOURS=5;
 const GERMAN_STUDY_WEEKLY_HOURS=4;
 const TRAINING_ATTENDANCE_ID='training-session';
+const TRAINING_DAILY_TARGET={Saturday:3,Sunday:4,Tuesday:4,Wednesday:4,Thursday:3};
 const SCORE_PILLARS=['College','German','Training'];
 let data=loadData();
 let activeDate=iso();
@@ -580,7 +581,7 @@ function telemetryPayload(){
     updated_at:new Date().toISOString(),
     confirmed_days_28d:0,
     completion:null,
-    attendance_score:scores.Attendance,
+    attendance_score:scores.Score,
     consistency:null,
     growth:scores.Growth,
     progress:scores.Progress,
@@ -653,11 +654,11 @@ function assistantContext(){
     selectedDay:dayName(activeDate),
     scores,
     attendanceScoring:{
-      rule:'Only College attendance, German course attendance, and Training attendance affect scores. Called-off items are excluded. Study hours and German self-study hours are informational only. Training is expected by default on Saturday, Sunday, Tuesday, Wednesday, and Thursday; never on Monday or Friday.',
+      rule:'College and German course are scored by attendance only. Training is scored 50% attendance and 50% completed scheduled hours. Called-off items are excluded. Study hours and German self-study hours are informational only. Training is expected on Saturday, Sunday, Tuesday, Wednesday, and Thursday; Monday and Friday training is optional and does not add to the scheduled-hours score.',
       thisWeek:{
         college:attendanceCounts(week,'College'),
         germanCourse:attendanceCounts(week,'German'),
-        training:attendanceCounts(week,'Training')
+        training:{attendance:attendanceCounts(week,'Training'),hoursRate:trainingHoursRate(week),score:trainingScore(week)}
       }
     },
     last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalHours(ds,'Training')},
@@ -907,8 +908,29 @@ function attendanceCounts(dates,pillar){
 function attendanceActual(date,pillar){return attendanceCounts([date],pillar).present}
 function cancelledAttendanceCount(date,pillar){return attendanceCounts([date],pillar).cancelled}
 function categoryAttendanceRate(dates,pillar){return attendanceCounts(dates,pillar).rate}
+function trainingHoursTarget(date){
+  if(isExternallyCancelled(date,'Training'))return 0;
+  return Number(TRAINING_DAILY_TARGET[dayName(date)]||0);
+}
+function trainingHoursRate(dates){
+  const targetHours=dates.reduce((s,d)=>s+trainingHoursTarget(d),0);
+  if(!targetHours)return null;
+  const actualHours=dates.reduce((s,d)=>s+(trainingHoursTarget(d)>0?sessionHours(d,'Training'):0),0);
+  return clamp(actualHours/targetHours*100,0,100);
+}
+function trainingScore(dates){
+  const attendance=categoryAttendanceRate(dates,'Training');
+  const hours=trainingHoursRate(dates);
+  if(attendance===null)return hours;
+  if(hours===null)return attendance;
+  return avg([attendance,hours]);
+}
 function attendanceScore(dates){
-  const rates=SCORE_PILLARS.map(p=>categoryAttendanceRate(dates,p)).filter(v=>v!==null);
+  const rates=[
+    categoryAttendanceRate(dates,'College'),
+    categoryAttendanceRate(dates,'German'),
+    trainingScore(dates)
+  ].filter(v=>v!==null);
   return rates.length?avg(rates):null;
 }
 function growth(){
@@ -935,7 +957,7 @@ function progress(){
 }
 function scoreSet(){
   return {
-    Attendance:attendanceScore(dateRange(iso(),28)),
+    Score:attendanceScore(dateRange(iso(),28)),
     Growth:growth(),
     Progress:progress()
   };
@@ -1004,15 +1026,15 @@ function setView(id){
 function scoreCard(label,value,desc){
   let shown='—';
   if(value!==null&&value!==undefined){
-    shown=label==='Attendance'?fmt(value,0)+'%':(value>=0?'+':'')+fmt(value,1)+' pts';
+    shown=label==='Score'?fmt(value,0)+'%':(value>=0?'+':'')+fmt(value,1)+' pts';
   }
   return `<div class="card score-card score-${label.toLowerCase()}"><div class="metric"><span class="label">${label}</span><b>${shown}</b><small>${desc}</small></div></div>`;
 }
 function renderHeadline(){
   const s=scoreSet(),first=firstTrackedAttendanceDate();
-  const progressDesc=s.Progress===null?(first?'building first 14-day baseline':'needs attendance data'):'vs your starting attendance';
+  const progressDesc=s.Progress===null?(first?'building first 14-day baseline':'needs scored data'):'vs your starting score';
   const html=[
-    scoreCard('Attendance',s.Attendance,'last 28 days'),
+    scoreCard('Score',s.Score,'College/German attendance + Training attendance/hours'),
     scoreCard('Growth',s.Growth,'last 7d vs previous 7d'),
     scoreCard('Progress',s.Progress,progressDesc)
   ].join('');
@@ -1043,7 +1065,7 @@ function renderToday(){
     `<div class="pillar-mini college"><div class="name"><span class="dot"></span>College</div><b>${isExternallyCancelled(activeDate,'College')?'Called off':college.tracked?college.present+'/'+college.tracked+' attended':college.scheduled?college.unlogged+' unlogged':'No college'}</b></div>`,
     `<div class="pillar-mini study"><div class="name"><span class="dot"></span>Study</div><b>${fmt(sessionHours(activeDate,'Study'))}h</b><div class="tiny">not scored</div></div>`,
     `<div class="pillar-mini german"><div class="name"><span class="dot"></span>German</div><b>${!germanActive(activeDate)?'Starts Oct 12':isExternallyCancelled(activeDate,'German')?'Course called off':german.tracked?german.present+'/'+german.tracked+' course':german.scheduled?german.unlogged+' course unlogged':'No course'}</b><div class="tiny">${germanActive(activeDate)?fmt(germanStudyHours(activeDate))+'h study · not scored':''}</div></div>`,
-    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${trainingAttendanceStatus(activeDate)==='present'?'Attended':!trainingExpected(activeDate)?'No training planned':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b><div class="tiny">${fmt(sessionHours(activeDate,'Training'))}h logged · hours not scored${!trainingExpected(activeDate)&&trainingAttendanceStatus(activeDate)!=='present'?' · optional today':''}</div></div>`
+    `<div class="pillar-mini training"><div class="name"><span class="dot"></span>Training</div><b>${trainingAttendanceStatus(activeDate)==='present'?'Attended':!trainingExpected(activeDate)?'No training planned':trainingAttendanceStatus(activeDate)==='absent'?'Missed':trainingAttendanceStatus(activeDate)==='cancelled'?'Called off':'Not logged'}</b><div class="tiny">${fmt(sessionHours(activeDate,'Training'))}h / ${fmt(trainingHoursTarget(activeDate))}h scheduled · attendance + hours scored${!trainingExpected(activeDate)&&trainingAttendanceStatus(activeDate)!=='present'?' · optional today':''}</div></div>`
   ].join('');
 
   const exceptionCandidates=[
@@ -1119,7 +1141,7 @@ function renderToday(){
 
   const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
-    const sub=p==='German'?'German self-study · not scored':p==='Training'?'Optional training hours · not scored':'Study time · not scored';
+    const sub=p==='German'?'German self-study · not scored':p==='Training'?'Training hours · scored with attendance':'Study time · not scored';
     return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p==='Training'?'Training hours':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="custom hours"><button type="button" class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div><div class="tiny" id="quickMsg${p}" style="margin-top:6px"></div></div>`;
   }).join('');
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
@@ -1291,7 +1313,7 @@ function renderCalculations(){
   const rows=[
     ['College',college.tracked?`${college.present}/${college.tracked} · ${Math.round(college.rate)}%`:college.unlogged?`${college.unlogged} unlogged`:'—','college'],
     ['German course',german.tracked?`${german.present}/${german.tracked} · ${Math.round(german.rate)}%`:germanActive(iso())?(german.unlogged?`${german.unlogged} unlogged`:'—'):'Starts Oct 12','german'],
-    ['Training',`${training.tracked?training.present+'/'+training.tracked+' · '+Math.round(training.rate)+'%':'—'} · ${fmt(totalHours(ds,'Training'))}h / 28d`,'training'],
+    ['Training',`${training.tracked?training.present+'/'+training.tracked+' attendance · '+Math.round(training.rate)+'%':'—'} · ${trainingHoursRate(ds)===null?'—':Math.round(trainingHoursRate(ds))+'%'} hours · ${trainingScore(ds)===null?'—':Math.round(trainingScore(ds))+'% score`,'training'],
     ['Study',`${fmt(totalHours(ds,'Study'))}h · 28d / ${fmt(studyAll)}h all time`,'study'],
     ['German study',germanActive(iso())?`${fmt(totalGermanStudyHours(ds))}h · 28d / ${fmt(germanStudyAll)}h all time`:'Starts Oct 12','german']
   ];
