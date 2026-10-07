@@ -1340,7 +1340,7 @@ function renderCalculations(){
   const rows=[
     ['College',college.tracked?`${college.present}/${college.tracked} · ${Math.round(college.rate)}%`:college.unlogged?`${college.unlogged} unlogged`:'—','college'],
     ['German course',german.tracked?`${german.present}/${german.tracked} · ${Math.round(german.rate)}%`:germanActive(iso())?(german.unlogged?`${german.unlogged} unlogged`:'—'):'Starts Oct 12','german'],
-    ['Training',`${training.tracked?training.present+'/'+training.tracked+' attendance · '+Math.round(training.rate)+'%':'—'} · ${trainingHoursRate(ds)===null?'—':Math.round(trainingHoursRate(ds))+'%'} hours · ${trainingScore(ds)===null?'—':Math.round(trainingScore(ds))+'% score`,'training'],
+    ['Training',`${training.tracked?training.present+'/'+training.tracked+' attendance · '+Math.round(training.rate)+'%':'—'} · ${trainingHoursRate(ds)===null?'—':Math.round(trainingHoursRate(ds))+'%'} hours · ${trainingScore(ds)===null?'—':Math.round(trainingScore(ds))+'%'} score`,'training'],
     ['Study',`${fmt(totalHours(ds,'Study'))}h · 28d / ${fmt(studyAll)}h all time`,'study'],
     ['German study',germanActive(iso())?`${fmt(totalGermanStudyHours(ds))}h · 28d / ${fmt(germanStudyAll)}h all time`:'Starts Oct 12','german']
   ];
