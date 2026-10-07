@@ -781,16 +781,32 @@ async function pullCloud(){
   }else setSyncState('Synced');
 }
 async function initCloud(){
-  const {data:{session}}=await cloud.auth.getSession();
-  cloudUser=session?.user||null;
-  renderAuthState();
-  if(cloudUser){await pullCloud();await loadOwnerRole();queueTelemetry();}
-  cloud.auth.onAuthStateChange(async(_event,session)=>{
+  const finishSignedIn=async()=>{
+    try{await pullCloud();await loadOwnerRole();queueTelemetry();}
+    catch(err){console.error('Post-auth initialization failed:',err);setSyncState('Cloud sync unavailable',true);}
+  };
+  cloud.auth.onAuthStateChange((_event,session)=>{
     cloudUser=session?.user||null;
     renderAuthState();
-    if(cloudUser){await pullCloud();await loadOwnerRole();queueTelemetry();}
+    if(cloudUser)setTimeout(()=>finishSignedIn(),0);
     else{isOwner=false;updateOwnerUI();}
   });
+  try{
+    const authResult=await Promise.race([
+      cloud.auth.getSession(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Session check timed out')),8000))
+    ]);
+    cloudUser=authResult?.data?.session?.user||null;
+    renderAuthState();
+    if(cloudUser)await finishSignedIn();
+  }catch(err){
+    console.error('Session initialization failed:',err);
+    cloudUser=null;
+    renderAuthState();
+    const gs=document.getElementById('gateStatus');
+    if(gs)gs.textContent='Session check failed. Sign in again.';
+    setSyncState('Session check failed',true);
+  }
 }
 async function signInGoogle(){
   setSyncState('Opening Google…');
