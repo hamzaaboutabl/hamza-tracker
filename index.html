@@ -483,7 +483,8 @@ body{
 'use strict';
 const SUPABASE_URL='https://firnmcqtjprckgqdcplg.supabase.co';
 const SUPABASE_KEY='sb_publishable_oG0bcYmr6nijxKeY02U0YA_iHnp79gZ';
-const cloud=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const supabaseReady=!!window.supabase?.createClient;
+const cloud=supabaseReady?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
 const KEY='hamzaPerformanceTrackerV7';
 const OLD_KEYS=['hamzaPerformanceTrackerV6','hamzaLifeTrackerV5','hamzaLifeTrackerLiteV1','hamzaLifeTrackerV4'];
 const PILLARS=['College','Study','German','Training'];
@@ -781,6 +782,15 @@ async function pullCloud(){
   }else setSyncState('Synced');
 }
 async function initCloud(){
+  if(!cloud){
+    cloudUser=null;
+    renderAuthState();
+    const gs=document.getElementById('gateStatus');
+    if(gs)gs.textContent='Could not load sign-in service. Check your connection and reload.';
+    const gb=document.getElementById('gateLoginBtn');
+    if(gb)gb.disabled=true;
+    return;
+  }
   const finishSignedIn=async()=>{
     try{await pullCloud();await loadOwnerRole();queueTelemetry();}
     catch(err){console.error('Post-auth initialization failed:',err);setSyncState('Cloud sync unavailable',true);}
@@ -809,6 +819,7 @@ async function initCloud(){
   }
 }
 async function signInGoogle(){
+  if(!cloud){const gs=document.getElementById('gateStatus');if(gs)gs.textContent='Sign-in service did not load. Reload the page.';return;}
   setSyncState('Opening Google…');
   const gs=document.getElementById('gateStatus');
   if(gs)gs.textContent='Opening Google…';
@@ -1372,8 +1383,8 @@ document.getElementById('resetBtn').addEventListener('click',()=>{if(confirm('Re
 
 document.getElementById('loginBtn').addEventListener('click',signInGoogle);
 document.getElementById('gateLoginBtn').addEventListener('click',signInGoogle);
-document.getElementById('logoutBtn').addEventListener('click',()=>cloud.auth.signOut());
-document.getElementById('systemLogoutBtn').addEventListener('click',()=>cloud.auth.signOut());
+document.getElementById('logoutBtn').addEventListener('click',()=>cloud?.auth.signOut());
+document.getElementById('systemLogoutBtn').addEventListener('click',()=>cloud?.auth.signOut());
 updateOwnerUI();
 initCloud();
 try{renderAll()}catch(err){
