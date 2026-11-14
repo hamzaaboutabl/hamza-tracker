@@ -22,7 +22,7 @@ button{cursor:pointer}
 .brand{padding:4px 10px 18px}.brand strong{font-size:19px}.brand span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .nav-group{margin:8px 0 14px}.nav-label{padding:0 10px 6px;color:#667588;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em}
 .nav{display:grid;gap:4px}.nav button{width:100%;border:1px solid transparent;background:transparent;color:var(--muted);text-align:left;padding:9px 10px;border-radius:10px;font-weight:750;display:flex;align-items:center;gap:9px}.nav button:hover{background:#111925;color:var(--soft)}.nav button.active{background:#182331;border-color:#2a3b4f;color:var(--text)}
-.dot{width:8px;height:8px;border-radius:50%;background:#6e8094;flex:none}.college{--pillar:var(--college)}.study{--pillar:var(--study)}.german{--pillar:var(--german)}.training{--pillar:var(--training)}.dot.college{background:var(--college)}.dot.study{background:var(--study)}.dot.german{background:var(--german)}.dot.training{background:var(--training)}
+.dot{width:8px;height:8px;border-radius:50%;background:#6e8094;flex:none}.college{--pillar:var(--college)}.study{--pillar:var(--study)}.german{--pillar:var(--german)}.training{--pillar:var(--training)}.walking{--pillar:var(--walking)}.dot.college{background:var(--college)}.dot.study{background:var(--study)}.dot.german{background:var(--german)}.dot.training{background:var(--training)}.dot.walking{background:var(--walking)}
 main{padding:22px 24px 48px;max-width:1500px;width:100%}
 .head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}.head h1{margin:0;font-size:25px;letter-spacing:-.02em}.sub{color:var(--muted);font-size:12px;margin-top:4px}.top-date{color:var(--muted);font-size:12px;padding-top:5px}
 .view{display:none}.view.active{display:block}
@@ -47,6 +47,7 @@ input,textarea,select{width:100%;border:1px solid var(--line);background:#0c1219
 .callout{border:1px solid #304157;background:#101a26;border-radius:12px;padding:11px;color:#c9d5e0}.callout b{color:var(--text)}
 .empty{color:var(--muted);padding:8px 0}.scroll{overflow:auto}.badge{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:10px;color:var(--muted);font-weight:800}
 details{border:1px solid var(--line);background:var(--panel2);border-radius:12px;padding:10px}summary{cursor:pointer;font-weight:800;color:var(--soft)}
+.chart-wrap{overflow-x:auto}.chart-svg{display:block;width:100%;min-width:520px;height:auto}.chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:9px}.chart-legend span{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}.chart-legend i{width:8px;height:8px;border-radius:50%;background:var(--legend-color);display:inline-block}.chart-note{margin-top:8px;color:var(--muted);font-size:11px}.chart-empty{color:var(--muted);font-size:12px;padding:8px 0}
 .cloud-box{margin:18px 4px 2px;padding:10px;border:1px solid var(--line);background:var(--panel2);border-radius:12px}.cloud-box .btn{width:100%;margin-top:7px}.cloud-status{margin-top:6px;word-break:break-word}
 @media(max-width:1080px){.quick-grid,.pillars{grid-template-columns:repeat(2,minmax(0,1fr))}.g4,.g5{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.app{grid-template-columns:1fr}.side{position:sticky;top:0;height:auto;z-index:10;padding:7px;background:rgba(10,14,19,.96);backdrop-filter:blur(10px);border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}.brand,.nav-label{display:none}.nav-group{margin:0;display:inline}.nav{display:flex;min-width:max-content}.nav button{width:auto;white-space:nowrap}.cloud-box{display:flex;align-items:center;gap:7px;margin:7px 0 0;padding:7px;min-width:max-content}.cloud-box .btn{width:auto;margin-top:0}.cloud-box .tiny{white-space:nowrap}main{padding:15px}.diary-compose{grid-template-columns:1fr}.category-list{grid-template-columns:repeat(5,minmax(120px,1fr));overflow:auto}}
@@ -56,7 +57,7 @@ details{border:1px solid var(--line);background:var(--panel2);border-radius:12px
 :root{
   --bg:#070b12;--side:#0b111b;--panel:#101925;--panel2:#0c141f;--panel3:#172638;
   --line:#22344a;--text:#f5f8fc;--muted:#8fa1b7;--soft:#d7e1eb;
-  --college:#4da3ff;--study:#a98cff;--german:#f3bd4f;--training:#45d39a;
+  --college:#4da3ff;--study:#a98cff;--german:#f3bd4f;--training:#45d39a;--walking:#60c6d6;
 }
 body{
   background:
@@ -424,6 +425,10 @@ body{
 <section class="view" id="calculations">
   <div class="grid g3" id="calcHeadline"></div>
   <div class="grid g2" style="margin-top:12px">
+    <div class="card"><div class="section-head"><div><h3>Progress trend</h3><p>7-day rolling scores · last 28 days</p></div></div><div id="progressTrendChart"></div></div>
+    <div class="card"><div class="section-head"><div><h3>Walking activity</h3><p>Daily logged duration · last 28 days</p></div></div><div id="walkingTrendChart"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:12px">
     <div class="card"><div class="section-head"><div><h3>This week</h3></div></div><div id="calcCoverage"></div></div>
     <div class="card"><div class="section-head"><div><h3>By area</h3></div></div><div id="pillarForm"></div></div>
   </div>
@@ -500,14 +505,15 @@ const supabaseReady=!!window.supabase?.createClient;
 const cloud=supabaseReady?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
 const KEY='hamzaPerformanceTrackerV7';
 const OLD_KEYS=['hamzaPerformanceTrackerV6','hamzaLifeTrackerV5','hamzaLifeTrackerLiteV1','hamzaLifeTrackerV4'];
-const PILLARS=['College','Study','German','Training'];
-const pillarClass={College:'college',Study:'study',German:'german',Training:'training'};
+const PILLARS=['College','Study','German','Training','Walking'];
+const pillarClass={College:'college',Study:'study',German:'german',Training:'training',Walking:'walking'};
 const subjects=['Accounting','Statistics','Management','Intro to Computers','English','Custom'];
 const types={
   College:['Lecture','Section','Other'],
   Study:subjects,
   German:['Course','Self-study','Practice','Other'],
-  Training:['Gymnastics','Mobility','Fitness','Other']
+  Training:['Gymnastics','Mobility','Fitness','Other'],
+  Walking:['Walking']
 };
 const diaryCategories=['Entry'];
 const SUBJECT_COURSES=[
@@ -546,7 +552,7 @@ let telemetryTimer=null;
 let isOwner=false;
 let assistantMessages=[];
 
-function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[]},attendance:{},courseLogs:{},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
+function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[],Walking:[]},attendance:{},courseLogs:{},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
 function normalize(d){
   const out=emptyData();
   if(!d||typeof d!=='object')return out;
@@ -681,7 +687,7 @@ function assistantContext(){
         training:{attendance:attendanceCounts(week,'Training'),hoursRate:trainingHoursRate(week),score:trainingScore(week)}
       }
     },
-    last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalHours(ds,'Training')},
+    last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalHours(ds,'Training'),walkingHours:totalHours(ds,'Walking')},
     selectedDateAttendance:attendance,
     selectedDateSubjectCourses:data.courseLogs?.[activeDate]||{},
     selectedDateExceptions:data.days?.[activeDate]?.exceptions||{},
@@ -1052,13 +1058,14 @@ function attendanceRow(name,x,cls){
 }
 function summaryHtml(dates){
   const college=attendanceCounts(dates,'College'),german=attendanceCounts(dates,'German'),training=attendanceCounts(dates,'Training');
-  const study=totalHours(dates,'Study'),germanStudy=totalGermanStudyHours(dates);
+  const study=totalHours(dates,'Study'),germanStudy=totalGermanStudyHours(dates),walking=totalHours(dates,'Walking');
   return [
     attendanceRow('College',college,'college'),
     attendanceRow('German course',german,'german'),
     attendanceRow('Training',training,'training'),
     `<div class="row study"><div class="grow"><b>Study</b><div class="tiny">not scored</div></div><b>${fmt(study)}h</b></div>`,
-    `<div class="row german"><div class="grow"><b>German study</b><div class="tiny">not scored</div></div><b>${germanActive(dates[dates.length-1]||iso())?fmt(germanStudy)+'h':'Starts Oct 12'}</b></div>`
+    `<div class="row german"><div class="grow"><b>German study</b><div class="tiny">not scored</div></div><b>${germanActive(dates[dates.length-1]||iso())?fmt(germanStudy)+'h':'Starts Oct 12'}</b></div>`,
+    `<div class="row walking"><div class="grow"><b>Walking</b><div class="tiny">activity · not scored</div></div><b>${fmt(walking)}h</b></div>`
   ].join('');
 }
 function daySummary(date){
@@ -1070,9 +1077,10 @@ function daySummary(date){
   if(isExternallyCancelled(date,'College'))bits.push('College called off');
   if(isExternallyCancelled(date,'German'))bits.push('German called off');
   if(training.cancelled)bits.push('Training called off');
-  const study=sessionHours(date,'Study'),gStudy=germanStudyHours(date);
+  const study=sessionHours(date,'Study'),gStudy=germanStudyHours(date),walking=sessionHours(date,'Walking');
   if(study)bits.push(`Study ${fmt(study)}h`);
   if(gStudy)bits.push(`German study ${fmt(gStudy)}h`);
+  if(walking)bits.push(`Walking ${fmt(walking)}h`);
   const notes=data.diary.filter(x=>x.date===date).length;
   if(notes)bits.push(`${notes} entr${notes===1?'y':'ies'}`);
   return bits;
@@ -1080,7 +1088,7 @@ function daySummary(date){
 function addSession(pillar,date,type,hours,note=''){
   const h=parseHours(hours);
   if(!date||h===null)return false;
-  if(!['Study','German','Training'].includes(pillar))return false;
+  if(!['Study','German','Training','Walking'].includes(pillar))return false;
   if(pillar==='German'&&!germanActive(date))return false;
   data.sessions[pillar].push({id:uid(pillar[0].toLowerCase()),date,type:type||pillar,hours:h,note:String(note||'').trim(),createdAt:new Date().toISOString()});
   save();return true;
@@ -1257,10 +1265,10 @@ function renderToday(){
     renderAll();
   });
 
-  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
+  const hourlyPillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training','Walking'];
   document.getElementById('quickLogGrid').innerHTML=hourlyPillars.map(p=>{
-    const sub=p==='German'?'German self-study · not scored':p==='Training'?'Training hours · scored with attendance':'Study time · not scored';
-    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p==='Training'?'Training hours':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="custom hours"><button type="button" class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div><div class="tiny" id="quickMsg${p}" style="margin-top:6px"></div></div>`;
+    const sub=p==='German'?'German self-study · not scored':p==='Training'?'Training hours · scored with attendance':p==='Walking'?'Walking duration · activity only':'Study time · not scored';
+    return `<div class="quick-card ${pillarClass[p]}"><h4>${p==='German'?'German study':p==='Training'?'Training hours':p==='Walking'?'Walking':'Study'}</h4><div class="tiny">${sub}</div><select id="quickType${p}">${quickTypeOptions(p,activeDate).map(x=>`<option>${escapeHtml(x)}</option>`).join('')}</select><div class="quick-hours">${[0.5,1,1.5,2,3,4].map(h=>`<button type="button" class="quick-hour" data-quick-hours="${p}|${h}">${h}h</button>`).join('')}</div><div class="quick-row" style="margin-top:8px"><input id="quickHours${p}" type="number" min="0.25" max="24" step="0.25" inputmode="decimal" placeholder="custom hours"><button type="button" class="btn pillar-btn ${pillarClass[p]}" data-quick-add="${p}">Add</button></div><div class="tiny" id="quickMsg${p}" style="margin-top:6px"></div></div>`;
   }).join('');
   document.querySelectorAll('[data-quick-hours]').forEach(b=>b.onclick=()=>{
     const [p,h]=b.dataset.quickHours.split('|');
@@ -1281,12 +1289,12 @@ function renderToday(){
     }else if(msg)msg.textContent='Could not save.';
   };
   document.querySelectorAll('[data-quick-add]').forEach(b=>b.onclick=()=>submitQuickHours(b.dataset.quickAdd));
-  ['Study',...(germanActive(activeDate)?['German']:[]),'Training'].forEach(p=>{
+  ['Study',...(germanActive(activeDate)?['German']:[]),'Training','Walking'].forEach(p=>{
     const input=document.getElementById('quickHours'+p);
     if(input)input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();submitQuickHours(p)}};
   });
 
-  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training'];
+  const editablePillars=['Study',...(germanActive(activeDate)?['German']:[]),'Training','Walking'];
   const sessions=editablePillars.flatMap(p=>data.sessions[p]
     .filter(x=>x.date===activeDate&&(p!=='German'||String(x.type||'').toLowerCase()!=='course'))
     .map(x=>({...x,pillar:p})))
@@ -1297,7 +1305,7 @@ function renderToday(){
     if(!opts.includes(x.type))opts.unshift(x.type);
     return `<div class="session-edit-card ${pillarClass[x.pillar]}" data-session-card="${x.pillar}|${x.id}">
       <div class="session-edit-head">
-        <div><b>${x.pillar==='German'?'German study':x.pillar==='Training'?'Training':'Study'} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
+        <div><b>${x.pillar==='German'?'German study':x.pillar==='Training'?'Training':x.pillar==='Walking'?'Walking':'Study'} · ${escapeHtml(x.type)}</b><div class="tiny">${fmt(x.hours)}h${x.note?' · '+escapeHtml(x.note):''}</div></div>
         <span class="badge">${fmt(x.hours)}h</span>
       </div>
       <details>
@@ -1314,7 +1322,7 @@ function renderToday(){
         </div>
       </details>
     </div>`;
-  }).join(''):'<div class="empty">No Study, German study, or Training hours logged on this date.</div>';
+  }).join(''):'<div class="empty">No Study, German study, Training, or Walking hours logged on this date.</div>';
 
   document.querySelectorAll('[data-save-session]').forEach(b=>b.onclick=()=>{
     const [p,id]=b.dataset.saveSession.split('|');
@@ -1422,18 +1430,63 @@ function renderTrackingPages(){
   document.getElementById('studyPage').innerHTML=sessionPageHtml('Study');
   bindSessionControls();
 }
+function linePath(values,x,y){
+  let d='',drawing=false;
+  values.forEach((value,i)=>{
+    if(value===null||value===undefined||!Number.isFinite(Number(value))){drawing=false;return;}
+    d+=(drawing?' L':' M')+x(i).toFixed(1)+' '+y(Number(value)).toFixed(1);
+    drawing=true;
+  });
+  return d.trim();
+}
+function renderProgressTrend(){
+  const dates=dateRange(iso(),28),W=900,H=270,left=44,right=16,top=16,bottom=34;
+  const pw=W-left-right,ph=H-top-bottom,x=i=>left+pw*i/(dates.length-1),y=v=>top+ph-(v/100)*ph;
+  const series=[
+    {label:'Overall',color:'#f3f6fb',values:dates.map(d=>attendanceScore(dateRange(d,7)))},
+    {label:'College',color:'var(--college)',values:dates.map(d=>categoryAttendanceRate(dateRange(d,7),'College'))},
+    {label:'German',color:'var(--german)',values:dates.map(d=>categoryAttendanceRate(dateRange(d,7),'German'))},
+    {label:'Training',color:'var(--training)',values:dates.map(d=>trainingScore(dateRange(d,7)))}
+  ];
+  const hasData=series.some(s=>s.values.some(v=>v!==null&&Number.isFinite(Number(v))));
+  const grid=[0,50,100].map(v=>'<line x1="'+left+'" y1="'+y(v)+'" x2="'+(W-right)+'" y2="'+y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(left-9)+'" y="'+(y(v)+4)+'" text-anchor="end" fill="var(--muted)" font-size="11">'+v+'</text>').join('');
+  const ticks=[0,6,13,20,27].map(i=>'<text x="'+x(i)+'" y="'+(H-8)+'" text-anchor="middle" fill="var(--muted)" font-size="11">'+parseDate(dates[i]).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</text>').join('');
+  const paths=series.map(s=>'<path d="'+linePath(s.values,x,y)+'" fill="none" stroke="'+s.color+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>').join('');
+  const dots=series.map(s=>s.values.map((v,i)=>v===null||!Number.isFinite(Number(v))?'':'<circle cx="'+x(i)+'" cy="'+y(Number(v))+'" r="3.2" fill="'+s.color+'"><title>'+s.label+': '+Math.round(Number(v))+'% · '+dates[i]+'</title></circle>').join('')).join('');
+  const legend=series.map(s=>'<span><i style="--legend-color:'+s.color+'"></i>'+s.label+'</span>').join('');
+  return '<div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Seven-day rolling performance scores over the last 28 days">'+grid+ticks+(hasData?paths+dots:'')+'</svg></div>'+
+    '<div class="chart-legend">'+legend+'</div>'+
+    '<div class="chart-note">'+(hasData?'Each point uses the seven days ending on that date. Unlogged sessions are not treated as misses.':'No scored attendance data yet. Log attendance to build this graph.')+'</div>';
+}
+function renderWalkingTrend(){
+  const dates=dateRange(iso(),28),values=dates.map(d=>sessionHours(d,'Walking'));
+  const total=values.reduce((s,v)=>s+v,0),loggedDays=values.filter(v=>v>0).length;
+  const max=Math.max(1,Math.ceil(Math.max(...values)*2)/2),W=900,H=250,left=44,right=16,top=16,bottom=34;
+  const pw=W-left-right,ph=H-top-bottom,step=pw/dates.length,barW=step*.62,y=v=>top+ph-(v/max)*ph;
+  const grid=[0,max/2,max].map(v=>'<line x1="'+left+'" y1="'+y(v)+'" x2="'+(W-right)+'" y2="'+y(v)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(left-9)+'" y="'+(y(v)+4)+'" text-anchor="end" fill="var(--muted)" font-size="11">'+fmt(v,1)+'h</text>').join('');
+  const bars=values.map((v,i)=>'<rect x="'+(left+i*step+(step-barW)/2)+'" y="'+y(v)+'" width="'+barW+'" height="'+Math.max(0,top+ph-y(v))+'" rx="3" fill="var(--walking)"><title>'+dates[i]+': '+fmt(v)+'h</title></rect>').join('');
+  const ticks=[0,6,13,20,27].map(i=>'<text x="'+(left+i*step+step/2)+'" y="'+(H-8)+'" text-anchor="middle" fill="var(--muted)" font-size="11">'+parseDate(dates[i]).toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</text>').join('');
+  return '<div class="chart-wrap"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Daily walking duration over the last 28 days">'+grid+ticks+bars+'</svg></div>'+
+    '<div class="grid g2" style="margin-top:8px"><div class="metric"><span class="label">Last 28 days</span><b>'+fmt(total)+'h</b></div><div class="metric"><span class="label">Days logged</span><b>'+loggedDays+'</b></div></div>'+
+    '<div class="chart-note">Only logged duration appears; an empty day does not mean you did not walk.</div>';
+}
 function renderCalculations(){
+  const progressChart=document.getElementById('progressTrendChart'),walkingChart=document.getElementById('walkingTrendChart');
+  if(progressChart)progressChart.innerHTML=renderProgressTrend();
+  if(walkingChart)walkingChart.innerHTML=renderWalkingTrend();
   const week=weekDates(),ds=dateRange(iso(),28);
   document.getElementById('calcCoverage').innerHTML=summaryHtml(week);
   const college=attendanceCounts(ds,'College'),german=attendanceCounts(ds,'German'),training=attendanceCounts(ds,'Training');
   const studyAll=data.sessions.Study.reduce((s,x)=>s+Number(x.hours||0),0);
   const germanStudyAll=data.sessions.German.filter(x=>String(x.type||'').toLowerCase()!=='course').reduce((s,x)=>s+Number(x.hours||0),0);
+  const walkingAll=data.sessions.Walking.reduce((s,x)=>s+Number(x.hours||0),0);
   const rows=[
     ['College',college.tracked?`${college.present}/${college.tracked} · ${Math.round(college.rate)}%`:college.unlogged?`${college.unlogged} unlogged`:'—','college'],
     ['German course',german.tracked?`${german.present}/${german.tracked} · ${Math.round(german.rate)}%`:germanActive(iso())?(german.unlogged?`${german.unlogged} unlogged`:'—'):'Starts Oct 12','german'],
     ['Training',`${training.tracked?training.present+'/'+training.tracked+' attendance · '+Math.round(training.rate)+'%':'—'} · ${trainingHoursRate(ds)===null?'—':Math.round(trainingHoursRate(ds))+'%'} hours · ${trainingScore(ds)===null?'—':Math.round(trainingScore(ds))+'%'} score`,'training'],
     ['Study',`${fmt(totalHours(ds,'Study'))}h · 28d / ${fmt(studyAll)}h all time`,'study'],
-    ['German study',germanActive(iso())?`${fmt(totalGermanStudyHours(ds))}h · 28d / ${fmt(germanStudyAll)}h all time`:'Starts Oct 12','german']
+    ['German study',germanActive(iso())?`${fmt(totalGermanStudyHours(ds))}h · 28d / ${fmt(germanStudyAll)}h all time`:'Starts Oct 12','german'],
+    ['Walking',`${fmt(totalHours(ds,'Walking'))}h · 28d / ${fmt(walkingAll)}h all time`,'walking']
   ];
   document.getElementById('pillarForm').innerHTML=rows.map(([name,value,cls])=>`<div class="row ${cls}"><div class="grow"><b>${name}</b></div><b>${value}</b></div>`).join('');
 }
