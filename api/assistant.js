@@ -8,6 +8,11 @@ const GERMAN_START = '2026-10-12';
 const GERMAN_COURSE_WEEKLY_HOURS = 5;
 const GERMAN_STUDY_WEEKLY_HOURS = 4;
 const TRAINING_ATTENDANCE_ID = 'training-session';
+const SUBJECT_COURSES = {
+  accounting:'Principles of Accounting',
+  management:'Principles of Management',
+  statistics:'Introduction to Statistics'
+};
 
 const ATTENDANCE = {
   Saturday: [
@@ -52,6 +57,7 @@ function ensurePayload(p) {
   out.sessions = out.sessions && typeof out.sessions === 'object' ? out.sessions : {};
   for (const p of PILLARS) out.sessions[p] = Array.isArray(out.sessions[p]) ? out.sessions[p] : [];
   out.attendance = out.attendance && typeof out.attendance === 'object' ? out.attendance : {};
+  out.courseLogs = out.courseLogs && typeof out.courseLogs === 'object' ? out.courseLogs : {};
   out.diary = Array.isArray(out.diary) ? out.diary : [];
   out.settings = out.settings && typeof out.settings === 'object' ? out.settings : {};
   return out;
@@ -118,6 +124,10 @@ function recentContext(payload, selectedDate) {
   for (const [date,day] of Object.entries(payload.days || {})) {
     if (date >= cutoffDate) days[date] = {exceptions:day?.exceptions||{}};
   }
+  const courseLogs = {};
+  for (const [date,map] of Object.entries(payload.courseLogs || {})) {
+    if (date >= cutoffDate) courseLogs[date] = map;
+  }
   return {
     today:isoDate(),
     selectedDate:validDate(selectedDate)?selectedDate:null,
@@ -125,10 +135,12 @@ function recentContext(payload, selectedDate) {
     trainingAttendanceId:TRAINING_ATTENDANCE_ID,
     recentSessions:sessions,
     recentAttendance:attendance,
+    recentSubjectCourseLogs:courseLogs,
+    selectedDateSubjectCourses:validDate(selectedDate)?(payload.courseLogs?.[selectedDate]||{}):{},
     recentDays:days,
     rules:{
       scoring:'College attendance and German course attendance are attendance-based. Training contributes a composite of 50% attendance and 50% completed scheduled hours. These three categories are equally weighted when data exists.',
-      college:'attendance-based from the real college schedule. For Accounting, Management, and Statistics, a completed in-person subject course or watched online subject course may replace the corresponding College session and counts as present. Computers and English have no course replacement.',
+      college:'attendance-based from the real college schedule. Accounting, Management, and Statistics can be logged as subject courses on any day Saturday through Thursday; Friday course logging is unavailable. A course log replaces College attendance only when that same subject has a scheduled College session on that date. On other days it is recorded separately and does not change the College score. Computers and English have no course replacement.',
       germanCourse:'attendance-based, starts 2026-10-12',
       training:'50% attendance + 50% scheduled completed hours. Weekly scheduled target is 18 hours: Saturday 3h, Sunday 4h, Tuesday 4h, Wednesday 4h, Thursday 3h. Monday and Friday are optional extras and do not add to the scheduled-hours target. Called-off days are excluded.',
       study:'hours are logged for information only and never scored',
@@ -154,12 +166,14 @@ const editTrackerTool = {
           properties:{
             action:{
               type:'string',
-              enum:['set_attendance','set_external_exception','add_session','update_session','delete_session','add_entry']
+              enum:['set_attendance','set_subject_course','set_external_exception','add_session','update_session','delete_session','add_entry']
             },
             date:{type:'string',description:'YYYY-MM-DD'},
             pillar:{type:'string',enum:['College','Study','German','Training']},
             item_id:{type:'string',description:'Attendance item id from context. Use training-session for Training.'},
-            status:{type:'string',enum:['present','absent','cancelled','unlogged','course_in_person','course_online'],description:'For eligible College subjects, course_in_person or course_online replaces College attendance and counts as present.'},
+            status:{type:'string',enum:['present','absent','cancelled','unlogged','course_in_person','course_online'],description:'For eligible scheduled College subjects, course_in_person or course_online replaces College attendance and counts as present.'},
+            subject_id:{type:'string',enum:['accounting','management','statistics'],description:'Subject for set_subject_course.'},
+            mode:{type:'string',enum:['in_person','online','clear'],description:'For set_subject_course: how the subject course was completed, or clear the log.'},
             active:{type:'boolean',description:'For set_external_exception: true to excuse the commitment, false to clear it.'},
             reason:{type:'string',description:'Optional short reason, e.g. coach cancelled or institution closed.'},
             session_id:{type:'string'},
@@ -214,6 +228,31 @@ function executeOperation(payload, op, userMessage) {
     if (!Object.keys(payload.attendance[date]).length) delete payload.attendance[date];
     const label = op.status === 'course_in_person' ? 'subject course attended in person' : op.status === 'course_online' ? 'subject course watched online' : op.status;
     return {ok:true,summary:`${item.label}: ${label} on ${date}`};
+  }
+
+  if (action === 'set_subject_course') {
+    if (!validDate(date)) return {ok:false,error:'Invalid subject-course date.'};
+    const day = weekday(date);
+    if (day === 'Friday') return {ok:false,error:'Subject courses can only be logged Saturday through Thursday.'};
+    if (!Object.prototype.hasOwnProperty.call(SUBJECT_COURSES,op.subject_id)) return {ok:false,error:'Choose Accounting, Management, or Statistics.'};
+    if (!['in_person','online','clear'].includes(op.mode)) return {ok:false,error:'Choose in_person, online, or clear.'};
+    payload.courseLogs = payload.courseLogs || {};
+    payload.courseLogs[date] = payload.courseLogs[date] || {};
+    if (op.mode === 'clear') delete payload.courseLogs[date][op.subject_id];
+    else payload.courseLogs[date][op.subject_id] = op.mode;
+    if (!Object.keys(payload.courseLogs[date]).length) delete payload.courseLogs[date];
+    const item = (ATTENDANCE[day] || []).find(x => x.pillar === 'College' && x.courseEligible && x.label === SUBJECT_COURSES[op.subject_id]);
+    if (item) {
+      payload.attendance[date] = payload.attendance[date] || {};
+      const existing = payload.attendance[date][item.id];
+      if (op.mode === 'in_person') payload.attendance[date][item.id] = 'course_in_person';
+      else if (op.mode === 'online') payload.attendance[date][item.id] = 'course_online';
+      else if (['course_in_person','course_online'].includes(existing)) delete payload.attendance[date][item.id];
+      if (!Object.keys(payload.attendance[date]).length) delete payload.attendance[date];
+    }
+    const label = SUBJECT_COURSES[op.subject_id];
+    const modeLabel = op.mode === 'in_person' ? 'attended in person' : op.mode === 'online' ? 'watched online' : 'log cleared';
+    return {ok:true,summary:`${label}: ${modeLabel} on ${date}${item?' (also updated today\'s College attendance)':''}`};
   }
 
   if (action === 'set_external_exception') {
