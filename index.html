@@ -255,9 +255,13 @@ body{
 .attendance-actions button{min-height:40px;border-radius:10px;font-weight:850}
 .attend-yes{border:1px solid color-mix(in srgb,var(--training) 55%,var(--line));background:color-mix(in srgb,var(--training) 12%,var(--panel));color:#c8f9e4}
 .attend-no{border:1px solid color-mix(in srgb,var(--danger) 55%,var(--line));background:color-mix(in srgb,var(--danger) 10%,var(--panel));color:#ffd0d7}
+.attend-course,.attend-online{border:1px solid color-mix(in srgb,var(--german) 48%,var(--line));background:color-mix(in srgb,var(--german) 10%,var(--panel));color:#ffe7ae}
+.attendance-actions.course-options{grid-template-columns:repeat(2,minmax(0,1fr))}
 .attend-clear{border:1px solid var(--line);background:transparent;color:var(--muted);padding:0 10px}
 .attendance-card[data-status="present"] .attend-yes{background:color-mix(in srgb,var(--training) 28%,var(--panel));border-color:var(--training);color:#effff8}
 .attendance-card[data-status="absent"] .attend-no{background:color-mix(in srgb,var(--danger) 25%,var(--panel));border-color:var(--danger);color:#fff0f3}
+.attendance-card[data-status="course_in_person"] .attend-course,.attendance-card[data-status="course_online"] .attend-online{background:color-mix(in srgb,var(--german) 24%,var(--panel));border-color:var(--german);color:#fff4d7}
+.attendance-status.course_in_person,.attendance-status.course_online{color:var(--german)}
 .attendance-status{margin-top:8px;font-size:11px;font-weight:850}
 .attendance-status.present{color:var(--training)}.attendance-status.absent{color:var(--danger)}.attendance-status.unlogged{color:var(--muted)}
 @media(max-width:900px){.attendance-grid{grid-template-columns:1fr}.attendance-actions{grid-template-columns:1fr 1fr auto}}
@@ -503,14 +507,14 @@ const attendanceSchedule={
     {id:'sat-english-lecture',pillar:'College',kind:'Lecture',label:'English Language',time:'College block 09:00–13:00'}
   ],
   Monday:[
-    {id:'mon-accounting-lecture',pillar:'College',kind:'Lecture',label:'Principles of Accounting',time:'College block 09:00–15:00'},
-    {id:'mon-management-lecture',pillar:'College',kind:'Lecture',label:'Principles of Management',time:'College block 09:00–15:00'},
-    {id:'mon-statistics-lecture',pillar:'College',kind:'Lecture',label:'Introduction to Statistics',time:'College block 09:00–15:00'},
+    {id:'mon-accounting-lecture',pillar:'College',kind:'Lecture',label:'Principles of Accounting',courseEligible:true,time:'College block 09:00–15:00'},
+    {id:'mon-management-lecture',pillar:'College',kind:'Lecture',label:'Principles of Management',courseEligible:true,time:'College block 09:00–15:00'},
+    {id:'mon-statistics-lecture',pillar:'College',kind:'Lecture',label:'Introduction to Statistics',courseEligible:true,time:'College block 09:00–15:00'},
     {id:'mon-german-course',pillar:'German',kind:'Course',label:'German A1',time:'19:30–22:00'}
   ],
   Thursday:[
     {id:'thu-computers-section',pillar:'College',kind:'Section',label:'Introduction to Computers',time:'10:00–11:00'},
-    {id:'thu-accounting-section',pillar:'College',kind:'Section',label:'Principles of Accounting',time:'11:00–12:00'},
+    {id:'thu-accounting-section',pillar:'College',kind:'Section',label:'Principles of Accounting',courseEligible:true,time:'11:00–12:00'},
     {id:'thu-german-course',pillar:'German',kind:'Course',label:'German A1',time:'19:30–22:00'}
   ]
 };
@@ -647,7 +651,7 @@ async function loadAdmin(){
 }
 function assistantContext(){
   const ds=dateRange(iso(),28),scores=scoreSet(),week=weekDates();
-  const attendance=scheduledAttendance(activeDate).map(x=>({pillar:x.pillar,label:x.label,kind:x.kind,status:attendanceStatus(activeDate,x.id)||'unlogged'}));
+  const attendance=scheduledAttendance(activeDate).map(x=>({pillar:x.pillar,label:x.label,kind:x.kind,courseEligible:!!x.courseEligible,status:attendanceStatus(activeDate,x.id)||'unlogged'}));
   attendance.push({pillar:'Training',label:'Training',kind:'Attendance',status:trainingAttendanceStatus(activeDate)||'unlogged'});
   const recentStudy=[...(data.sessions.Study||[])].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12).map(x=>({date:x.date,subject:x.type,hours:x.hours}));
   return {
@@ -655,7 +659,7 @@ function assistantContext(){
     selectedDay:dayName(activeDate),
     scores,
     attendanceScoring:{
-      rule:'College and German course are scored by attendance only. Training is scored 50% attendance and 50% completed scheduled hours. Called-off items are excluded. Study hours and German self-study hours are informational only. Training is expected on Saturday, Sunday, Tuesday, Wednesday, and Thursday; Monday and Friday training is optional and does not add to the scheduled-hours score.',
+      rule:'College and German course are scored by attendance only. For Accounting, Management, and Statistics, completing the subject course in person or watching it online can replace attending the corresponding College session and counts as present. Introduction to Computers and English can only be marked as attended at College. Training is scored 50% attendance and 50% completed scheduled hours. Called-off items are excluded. Study hours and German self-study hours are informational only. Training is expected on Saturday, Sunday, Tuesday, Wednesday, and Thursday; Monday and Friday training is optional and does not add to the scheduled-hours score.',
       thisWeek:{
         college:attendanceCounts(week,'College'),
         germanCourse:attendanceCounts(week,'German'),
@@ -876,6 +880,8 @@ function scheduledAttendance(date,pillar=null){
   return pillar?items.filter(x=>x.pillar===pillar):items;
 }
 function attendanceStatus(date,id){return data.attendance?.[date]?.[id]||null}
+function attendanceIsPresent(status){return status==='present'||status==='course_in_person'||status==='course_online'}
+function attendanceStatusLabel(status){return status==='present'?'Attended college':status==='course_in_person'?'Attended subject course':status==='course_online'?'Watched subject course online':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged'}
 function setAttendance(date,id,status){
   data.attendance=data.attendance||{};
   data.attendance[date]=data.attendance[date]||{};
@@ -923,7 +929,7 @@ function attendanceCounts(dates,pillar){
       const status=attendanceStatus(date,x.id);
       if(status==='cancelled'){out.cancelled++;return}
       out.scheduled++;
-      if(status==='present')out.present++;
+      if(attendanceIsPresent(status))out.present++;
       else if(status==='absent')out.absent++;
       else out.unlogged++;
     });
@@ -968,7 +974,7 @@ function growth(){
 function firstTrackedAttendanceDate(){
   return Object.keys(data.attendance||{}).sort().find(date=>{
     const statuses=Object.values(data.attendance[date]||{});
-    return statuses.some(s=>s==='present'||s==='absent');
+    return statuses.some(s=>attendanceIsPresent(s)||s==='absent');
   })||null;
 }
 function baselineAttendance(){
@@ -1116,18 +1122,27 @@ function renderToday(){
   const scheduledHtml=attendanceItems.map(x=>{
     const whole=isExternallyCancelled(activeDate,x.pillar);
     const status=whole?'cancelled':attendanceStatus(activeDate,x.id);
-    const statusText=whole?'Called off':status==='present'?'Attended':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged';
+    const statusText=whole?'Called off':attendanceStatusLabel(status);
     const actions=whole
       ? '<div class="callout" style="margin-top:9px">Called off. Clear it above if that changes.</div>'
-      : `<div class="attendance-actions">
-          <button type="button" class="attend-yes" data-attendance="${x.id}|present">Attended</button>
-          <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
-          <button type="button" class="attend-cancel" data-attendance="${x.id}|cancelled">Called off</button>
-          <button type="button" class="attend-clear" data-attendance="${x.id}|clear" aria-label="Clear attendance">×</button>
-        </div>`;
+      : x.courseEligible
+        ? `<div class="attendance-actions course-options">
+            <button type="button" class="attend-yes" data-attendance="${x.id}|present">College</button>
+            <button type="button" class="attend-course" data-attendance="${x.id}|course_in_person">Course</button>
+            <button type="button" class="attend-online" data-attendance="${x.id}|course_online">Online course</button>
+            <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
+            <button type="button" class="attend-cancel" data-attendance="${x.id}|cancelled">Called off</button>
+            <button type="button" class="attend-clear" data-attendance="${x.id}|clear" aria-label="Clear attendance">Clear</button>
+          </div>`
+        : `<div class="attendance-actions">
+            <button type="button" class="attend-yes" data-attendance="${x.id}|present">Attended</button>
+            <button type="button" class="attend-no" data-attendance="${x.id}|absent">Missed</button>
+            <button type="button" class="attend-cancel" data-attendance="${x.id}|cancelled">Called off</button>
+            <button type="button" class="attend-clear" data-attendance="${x.id}|clear" aria-label="Clear attendance">×</button>
+          </div>`;
     return `<div class="attendance-card ${pillarClass[x.pillar]}" data-status="${status||''}">
       <h4>${escapeHtml(x.label)}</h4>
-      <div class="attendance-meta">${x.pillar} · ${x.kind}${x.time?' · '+escapeHtml(x.time):''}</div>
+      <div class="attendance-meta">${x.pillar} · ${x.kind}${x.courseEligible?' · course can replace College attendance':''}${x.time?' · '+escapeHtml(x.time):''}</div>
       ${actions}
       <div class="attendance-status ${status||'unlogged'}">${statusText}</div>
     </div>`;
