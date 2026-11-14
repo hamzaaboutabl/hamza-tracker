@@ -243,6 +243,10 @@ body{
 
 /* v10: attendance-based College + German */
 .attendance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.subject-course-actions{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-top:10px}
+.subject-course-actions button{min-height:40px;border-radius:10px;font-weight:850}
+.subject-course-actions button.selected{outline:2px solid var(--german);outline-offset:1px}
+@media(max-width:900px){.subject-course-actions{grid-template-columns:1fr 1fr auto}}
 .attendance-card{
   --pillar:#71849a;border:1px solid color-mix(in srgb,var(--pillar) 42%,var(--line));
   background:linear-gradient(145deg,color-mix(in srgb,var(--pillar) 11%,var(--panel2)),var(--panel2));
@@ -398,6 +402,11 @@ body{
     <div id="attendanceGrid" class="attendance-grid"></div>
   </div>
 
+  <div class="card" id="subjectCourseCard" style="margin-top:12px" hidden>
+    <div class="section-head"><div><h3>Subject courses</h3><p>Log Accounting, Management, or Statistics on any day except Friday. If there is a matching College class today, this also counts as its course replacement.</p></div></div>
+    <div id="subjectCourseGrid" class="attendance-grid"></div>
+  </div>
+
   <div class="card" style="margin-top:12px">
     <div class="section-head"><div><h3>Hours</h3></div></div>
     <div class="quick-grid" id="quickLogGrid"></div>
@@ -501,6 +510,11 @@ const types={
   Training:['Gymnastics','Mobility','Fitness','Other']
 };
 const diaryCategories=['Entry'];
+const SUBJECT_COURSES=[
+  {id:'accounting',label:'Principles of Accounting'},
+  {id:'management',label:'Principles of Management'},
+  {id:'statistics',label:'Introduction to Statistics'}
+];
 const attendanceSchedule={
   Saturday:[
     {id:'sat-computers-lecture',pillar:'College',kind:'Lecture',label:'Introduction to Computers',time:'College block 09:00–13:00'},
@@ -532,12 +546,13 @@ let telemetryTimer=null;
 let isOwner=false;
 let assistantMessages=[];
 
-function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[]},attendance:{},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
+function emptyData(){return {days:{},sessions:{College:[],Study:[],German:[],Training:[]},attendance:{},courseLogs:{},diary:[],settings:{createdAt:new Date().toISOString(),lastModified:new Date(0).toISOString()}}}
 function normalize(d){
   const out=emptyData();
   if(!d||typeof d!=='object')return out;
   out.days=d.days&&typeof d.days==='object'?d.days:{};
   out.attendance=d.attendance&&typeof d.attendance==='object'?d.attendance:{};
+  out.courseLogs=d.courseLogs&&typeof d.courseLogs==='object'?d.courseLogs:{};
   out.diary=Array.isArray(d.diary)?d.diary:[];
   out.settings={...out.settings,...(d.settings||{})};
   if(d.sessions&&typeof d.sessions==='object')PILLARS.forEach(p=>out.sessions[p]=Array.isArray(d.sessions[p])?d.sessions[p]:[]);
@@ -668,6 +683,7 @@ function assistantContext(){
     },
     last28Days:{studyHours:totalHours(ds,'Study'),germanStudyHours:totalGermanStudyHours(ds),trainingHours:totalHours(ds,'Training')},
     selectedDateAttendance:attendance,
+    selectedDateSubjectCourses:data.courseLogs?.[activeDate]||{},
     selectedDateExceptions:data.days?.[activeDate]?.exceptions||{},
     recentStudy,
     german:{starts:GERMAN_START,courseHoursPerWeek:GERMAN_COURSE_WEEKLY_HOURS,studyHoursPerWeek:GERMAN_STUDY_WEEKLY_HOURS},
@@ -880,14 +896,48 @@ function scheduledAttendance(date,pillar=null){
   return pillar?items.filter(x=>x.pillar===pillar):items;
 }
 function attendanceStatus(date,id){return data.attendance?.[date]?.[id]||null}
+function subjectCourseMode(date,subjectId){return data.courseLogs?.[date]?.[subjectId]||null}
+function subjectCourseForItem(item){return SUBJECT_COURSES.find(x=>x.label===item?.label)||null}
+function scheduledSubjectCourseItem(date,subjectId){
+  const subject=SUBJECT_COURSES.find(x=>x.id===subjectId);
+  return subject?scheduledAttendance(date,'College').find(x=>x.courseEligible&&x.label===subject.label)||null:null;
+}
 function attendanceIsPresent(status){return status==='present'||status==='course_in_person'||status==='course_online'}
 function attendanceStatusLabel(status,pillar='College'){return status==='present'?(pillar==='German'?'Attended German course':'Attended college'):status==='course_in_person'?'Attended subject course':status==='course_online'?'Watched subject course online':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged'}
 function setAttendance(date,id,status){
   data.attendance=data.attendance||{};
   data.attendance[date]=data.attendance[date]||{};
+  const item=scheduledAttendance(date,'College').find(x=>x.id===id&&x.courseEligible);
+  const subject=subjectCourseForItem(item);
+  if(subject){
+    data.courseLogs=data.courseLogs||{};
+    data.courseLogs[date]=data.courseLogs[date]||{};
+    if(status==='course_in_person')data.courseLogs[date][subject.id]='in_person';
+    else if(status==='course_online')data.courseLogs[date][subject.id]='online';
+    else delete data.courseLogs[date][subject.id];
+    if(!Object.keys(data.courseLogs[date]).length)delete data.courseLogs[date];
+  }
   if(status)data.attendance[date][id]=status;
   else delete data.attendance[date][id];
   if(!Object.keys(data.attendance[date]).length)delete data.attendance[date];
+  save();
+}
+function setSubjectCourse(date,subjectId,mode){
+  if(dayName(date)==='Friday'||!SUBJECT_COURSES.some(x=>x.id===subjectId))return;
+  data.courseLogs=data.courseLogs||{};
+  data.courseLogs[date]=data.courseLogs[date]||{};
+  if(mode)data.courseLogs[date][subjectId]=mode;
+  else delete data.courseLogs[date][subjectId];
+  if(!Object.keys(data.courseLogs[date]).length)delete data.courseLogs[date];
+  const item=scheduledSubjectCourseItem(date,subjectId);
+  if(item){
+    data.attendance=data.attendance||{};
+    data.attendance[date]=data.attendance[date]||{};
+    if(mode==='in_person')data.attendance[date][item.id]='course_in_person';
+    else if(mode==='online')data.attendance[date][item.id]='course_online';
+    else if(['course_in_person','course_online'].includes(data.attendance[date][item.id]))delete data.attendance[date][item.id];
+    if(!Object.keys(data.attendance[date]).length)delete data.attendance[date];
+  }
   save();
 }
 function trainingExpected(date){return !['Monday','Friday'].includes(dayName(date))}
@@ -1170,6 +1220,32 @@ function renderToday(){
   </div>`;
 
   document.getElementById('attendanceGrid').innerHTML=scheduledHtml+trainingHtml;
+  const courseCard=document.getElementById('subjectCourseCard');
+  const courseGrid=document.getElementById('subjectCourseGrid');
+  const isFriday=dayName(activeDate)==='Friday';
+  courseCard.hidden=isFriday;
+  if(!isFriday){
+    courseGrid.innerHTML=SUBJECT_COURSES.map(subject=>{
+      const mode=subjectCourseMode(activeDate,subject.id);
+      const modeLabel=mode==='in_person'?'Attended in person':mode==='online'?'Watched online':'Not logged';
+      const matchingClass=!!scheduledSubjectCourseItem(activeDate,subject.id);
+      return `<div class="attendance-card college" data-status="${mode||''}">
+        <h4>${escapeHtml(subject.label)}</h4>
+        <div class="attendance-meta">${matchingClass?'Can replace today\'s College attendance':'Daily course log · no College class today'}</div>
+        <div class="subject-course-actions">
+          <button type="button" class="attend-course ${mode==='in_person'?'selected':''}" data-subject-course="${subject.id}|in_person" aria-pressed="${mode==='in_person'}">In person</button>
+          <button type="button" class="attend-online ${mode==='online'?'selected':''}" data-subject-course="${subject.id}|online" aria-pressed="${mode==='online'}">Online</button>
+          <button type="button" class="attend-clear" data-subject-course="${subject.id}|clear">Clear</button>
+        </div>
+        <div class="attendance-status ${mode?'course_in_person':'unlogged'}">${modeLabel}</div>
+      </div>`;
+    }).join('');
+  }else courseGrid.innerHTML='';
+  document.querySelectorAll('[data-subject-course]').forEach(b=>b.onclick=()=>{
+    const [subjectId,mode]=b.dataset.subjectCourse.split('|');
+    setSubjectCourse(activeDate,subjectId,mode==='clear'?null:mode);
+    renderAll();
+  });
   document.querySelectorAll('[data-attendance]').forEach(b=>b.onclick=()=>{
     const [id,status]=b.dataset.attendance.split('|');
     setAttendance(activeDate,id,status==='clear'?null:status);
