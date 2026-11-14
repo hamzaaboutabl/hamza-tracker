@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 const SUPABASE_URL = 'https://firnmcqtjprckgqdcplg.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oG0bcYmr6nijxKeY02U0YA_iHnp79gZ';
 const MODEL = 'gemini-3.8-flash';
-const PILLARS = ['College','Study','German','Training'];
+const PILLARS = ['College','Study','German','Training','Walking'];
 const GERMAN_START = '2026-10-12';
 const GERMAN_COURSE_WEEKLY_HOURS = 5;
 const GERMAN_STUDY_WEEKLY_HOURS = 4;
@@ -111,7 +111,7 @@ function recentContext(payload, selectedDate) {
   cutoff.setUTCDate(cutoff.getUTCDate()-45);
   const cutoffDate = cutoff.toISOString().slice(0,10);
   const sessions = {};
-  for (const p of ['Study','German','Training']) {
+  for (const p of ['Study','German','Training','Walking']) {
     sessions[p] = (payload.sessions?.[p] || [])
       .filter(x => validDate(x?.date) && x.date >= cutoffDate && (p !== 'German' || String(x?.type || '').toLowerCase() !== 'course'))
       .map(x => ({id:x.id,date:x.date,type:x.type,hours:Number(x.hours)||0}));
@@ -169,7 +169,7 @@ const editTrackerTool = {
               enum:['set_attendance','set_subject_course','set_external_exception','add_session','update_session','delete_session','add_entry']
             },
             date:{type:'string',description:'YYYY-MM-DD'},
-            pillar:{type:'string',enum:['College','Study','German','Training']},
+            pillar:{type:'string',enum:['College','Study','German','Training','Walking']},
             item_id:{type:'string',description:'Attendance item id from context. Use training-session for Training.'},
             status:{type:'string',enum:['present','absent','cancelled','unlogged','course_in_person','course_online'],description:'For eligible scheduled College subjects, course_in_person or course_online replaces College attendance and counts as present.'},
             subject_id:{type:'string',enum:['accounting','management','statistics'],description:'Subject for set_subject_course.'},
@@ -287,21 +287,21 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'add_session') {
     if (!validDate(date)) return {ok:false,error:'Invalid session date.'};
-    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Only Study, German self-study, and optional Training hours use hour sessions.'};
+    if (!['Study','German','Training','Walking'].includes(op.pillar)) return {ok:false,error:'Only Study, German self-study, Training, and Walking use hour sessions.'};
     if (op.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German study tracking starts on 2026-10-12.'};
     const h = num(op.hours);
     if (h === null || h <= 0 || h > 24) return {ok:false,error:'Hours must be between 0 and 24.'};
-    const defaultType = op.pillar === 'Study' ? 'Custom' : op.pillar === 'German' ? 'Self-study' : 'Other';
+    const defaultType = op.pillar === 'Study' ? 'Custom' : op.pillar === 'German' ? 'Self-study' : op.pillar === 'Walking' ? 'Walking' : 'Other';
     let type = String(op.activity_type || defaultType).slice(0,80);
     if (op.pillar === 'German' && type.toLowerCase() === 'course') type = 'Self-study';
-    const prefix = op.pillar === 'Study' ? 's' : op.pillar === 'German' ? 'g' : 't';
+    const prefix = op.pillar === 'Study' ? 's' : op.pillar === 'German' ? 'g' : op.pillar === 'Walking' ? 'w' : 't';
     const row = {id:uid(prefix),date,type,hours:h,note:'',createdAt:new Date().toISOString()};
     payload.sessions[op.pillar].push(row);
     return {ok:true,summary:`Added ${h}h ${op.pillar === 'German' ? 'German study' : op.pillar} (${type}) on ${date}`,session_id:row.id};
   }
 
   if (action === 'update_session') {
-    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Study, German self-study, and optional Training hours have hour sessions.'};
+    if (!['Study','German','Training','Walking'].includes(op.pillar)) return {ok:false,error:'Study, German self-study, Training, and Walking have hour sessions.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
     if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is tracked by attendance, not an hourly session.'};
@@ -325,7 +325,7 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'delete_session') {
     if (!explicitDelete) return {ok:false,error:'Session deletion requires the user to explicitly say delete/remove.'};
-    if (!['Study','German','Training'].includes(op.pillar)) return {ok:false,error:'Study, German self-study, and optional Training hours have hour sessions.'};
+    if (!['Study','German','Training','Walking'].includes(op.pillar)) return {ok:false,error:'Study, German self-study, Training, and Walking have hour sessions.'};
     const row = payload.sessions[op.pillar].find(x => x.id === op.session_id);
     if (!row) return {ok:false,error:'Session not found.'};
     if (op.pillar === 'German' && String(row.type || '').toLowerCase() === 'course') return {ok:false,error:'German course is attendance-based and cannot be deleted as an hourly study session.'};
@@ -388,7 +388,7 @@ export default async function handler(req,res) {
       'Training has an 18-hour weekly target: Saturday 3h, Sunday 4h, Tuesday 4h, Wednesday 4h, Thursday 3h. Monday and Friday are optional extras and do not increase the scheduled-hours score.',
       'College attendance comes from the actual College lecture/section schedule. For Accounting, Management, and Statistics, completing the subject course in person or watching it online can replace the corresponding College session and counts as present. Computers and English have no course replacement. German course attendance starts on 2026-10-12. Default Training days are Saturday, Sunday, Tuesday, Wednesday, and Thursday. There is no default Training on Monday or Friday. Use item_id training-session for Training attendance.',
       'If the user says they trained, mark Training present even on Monday or Friday; those days are optional extras rather than expected sessions. If they skipped a planned default Training day, mark it absent. If the coach/gym called off a default Training day, mark it cancelled/external and it must not hurt the score. Never mark Monday or Friday missed/cancelled merely because no Training happened there.',
-      'Study and German self-study may be logged in hours for information only. Training hours count toward the scheduled-hours half of the Training score. Never invent hours.',
+      'Study and German self-study may be logged in hours for information only. Walking is a separate optional activity logged by duration in hours; it is informational only and never affects Training or performance scores. Training hours count toward the scheduled-hours half of the Training score. Never invent hours.',
       'Never invent attendance, dates, subjects, or hours. Ask one concise clarification when a needed fact is missing.',
       'Only delete a study session if the user explicitly asks to delete/remove it.',
       'Never create German course attendance or German self-study records before 2026-10-12.',
