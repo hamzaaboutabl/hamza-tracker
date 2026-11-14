@@ -222,6 +222,17 @@ function executeOperation(payload, op, userMessage) {
     if (!item) return {ok:false,error:'That College/German attendance item is not scheduled on that date.'};
     if (item.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German course tracking starts on 2026-10-12.'};
     if ((op.status === 'course_in_person' || op.status === 'course_online') && !item.courseEligible) return {ok:false,error:'Only Accounting, Management, and Statistics can use a subject course instead of College attendance.'};
+    if (item.courseEligible) {
+      const subjectId = Object.entries(SUBJECT_COURSES).find(([,label]) => label === item.label)?.[0];
+      if (subjectId) {
+        payload.courseLogs = payload.courseLogs || {};
+        payload.courseLogs[date] = payload.courseLogs[date] || {};
+        if (op.status === 'course_in_person') payload.courseLogs[date][subjectId] = 'in_person';
+        else if (op.status === 'course_online') payload.courseLogs[date][subjectId] = 'online';
+        else delete payload.courseLogs[date][subjectId];
+        if (!Object.keys(payload.courseLogs[date]).length) delete payload.courseLogs[date];
+      }
+    }
     payload.attendance[date] = payload.attendance[date] || {};
     if (op.status === 'unlogged') delete payload.attendance[date][item.id];
     else payload.attendance[date][item.id] = op.status;
