@@ -15,14 +15,14 @@ const ATTENDANCE = {
     { id:'sat-english-lecture', pillar:'College', label:'English Language lecture' }
   ],
   Monday: [
-    { id:'mon-accounting-lecture', pillar:'College', label:'Principles of Accounting lecture' },
-    { id:'mon-management-lecture', pillar:'College', label:'Principles of Management lecture' },
-    { id:'mon-statistics-lecture', pillar:'College', label:'Introduction to Statistics lecture' },
+    { id:'mon-accounting-lecture', pillar:'College', label:'Principles of Accounting lecture', courseEligible:true },
+    { id:'mon-management-lecture', pillar:'College', label:'Principles of Management lecture', courseEligible:true },
+    { id:'mon-statistics-lecture', pillar:'College', label:'Introduction to Statistics lecture', courseEligible:true },
     { id:'mon-german-course', pillar:'German', label:'German A1 course' }
   ],
   Thursday: [
     { id:'thu-computers-section', pillar:'College', label:'Introduction to Computers section' },
-    { id:'thu-accounting-section', pillar:'College', label:'Principles of Accounting section' },
+    { id:'thu-accounting-section', pillar:'College', label:'Principles of Accounting section', courseEligible:true },
     { id:'thu-german-course', pillar:'German', label:'German A1 course' }
   ]
 };
@@ -127,13 +127,13 @@ function recentContext(payload, selectedDate) {
     recentAttendance:attendance,
     recentDays:days,
     rules:{
-      scoring:'Only College attendance, German course attendance, and Training attendance affect performance scores. The three categories are equally weighted when data exists.',
-      college:'attendance-based from the real college schedule',
+      scoring:'College attendance and German course attendance are attendance-based. Training contributes a composite of 50% attendance and 50% completed scheduled hours. These three categories are equally weighted when data exists.',
+      college:'attendance-based from the real college schedule. For Accounting, Management, and Statistics, a completed in-person subject course or watched online subject course may replace the corresponding College session and counts as present. Computers and English have no course replacement.',
       germanCourse:'attendance-based, starts 2026-10-12',
-      training:'attendance-based. Default training days are Saturday, Sunday, Tuesday, Wednesday, and Thursday. Monday and Friday are not expected by default, but if the user explicitly trains on either day, log Training as present and count it as an extra attended training. No hour target.',
+      training:'50% attendance + 50% scheduled completed hours. Weekly scheduled target is 18 hours: Saturday 3h, Sunday 4h, Tuesday 4h, Wednesday 4h, Thursday 3h. Monday and Friday are optional extras and do not add to the scheduled-hours target. Called-off days are excluded.',
       study:'hours are logged for information only and never scored',
       germanStudy:'hours are logged for information only and never scored; starts 2026-10-12',
-      trainingHours:'optional hours may be logged for information only and never affect attendance or performance scores',
+      trainingHours:'Training hours count toward the scheduled-hours half of the Training score; Study and German self-study hours remain informational only',
       calledOff:'cancelled-by-institution/teacher/coach items are excluded from scores',
       missing:'unlogged is missing, not zero'
     }
@@ -159,7 +159,7 @@ const editTrackerTool = {
             date:{type:'string',description:'YYYY-MM-DD'},
             pillar:{type:'string',enum:['College','Study','German','Training']},
             item_id:{type:'string',description:'Attendance item id from context. Use training-session for Training.'},
-            status:{type:'string',enum:['present','absent','cancelled','unlogged']},
+            status:{type:'string',enum:['present','absent','cancelled','unlogged','course_in_person','course_online'],description:'For eligible College subjects, course_in_person or course_online replaces College attendance and counts as present.'},
             active:{type:'boolean',description:'For set_external_exception: true to excuse the commitment, false to clear it.'},
             reason:{type:'string',description:'Optional short reason, e.g. coach cancelled or institution closed.'},
             session_id:{type:'string'},
@@ -182,7 +182,7 @@ function executeOperation(payload, op, userMessage) {
 
   if (action === 'set_attendance') {
     if (!validDate(date)) return {ok:false,error:'Invalid attendance date.'};
-    if (!['present','absent','cancelled','unlogged'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
+    if (!['present','absent','cancelled','unlogged','course_in_person','course_online'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
 
     if (op.item_id === TRAINING_ATTENDANCE_ID || op.pillar === 'Training') {
       payload.days[date] = payload.days[date] || {};
@@ -206,11 +206,13 @@ function executeOperation(payload, op, userMessage) {
     const item = scheduled.find(x => x.id === op.item_id);
     if (!item) return {ok:false,error:'That College/German attendance item is not scheduled on that date.'};
     if (item.pillar === 'German' && date < GERMAN_START) return {ok:false,error:'German course tracking starts on 2026-10-12.'};
+    if ((op.status === 'course_in_person' || op.status === 'course_online') && !item.courseEligible) return {ok:false,error:'Only Accounting, Management, and Statistics can use a subject course instead of College attendance.'};
     payload.attendance[date] = payload.attendance[date] || {};
     if (op.status === 'unlogged') delete payload.attendance[date][item.id];
     else payload.attendance[date][item.id] = op.status;
     if (!Object.keys(payload.attendance[date]).length) delete payload.attendance[date];
-    return {ok:true,summary:`${item.label}: ${op.status} on ${date}`};
+    const label = op.status === 'course_in_person' ? 'subject course attended in person' : op.status === 'course_online' ? 'subject course watched online' : op.status;
+    return {ok:true,summary:`${item.label}: ${label} on ${date}`};
   }
 
   if (action === 'set_external_exception') {
@@ -331,11 +333,11 @@ export default async function handler(req,res) {
     const prompt = [
       'You are the embedded assistant inside Hamza Tracker.',
       'You can answer questions and edit the signed-in user\'s tracker with the edit_tracker tool.',
-      'Performance scoring uses ONLY three things: College attendance, German course attendance, and Training attendance. Study hours, German self-study hours, and old Training-hour records are informational only and must never affect scores.',
-      'There is NO fixed reference schedule, daily hour requirement, weekly hour target, points requirement, or target override in scoring.',
-      'College attendance comes from the actual College lecture/section schedule. German course attendance starts on 2026-10-12. Default Training days are Saturday, Sunday, Tuesday, Wednesday, and Thursday. There is no default Training on Monday or Friday. Use item_id training-session for Training attendance.',
+      'Performance scoring uses College attendance, German course attendance, and Training. Training is 50% attendance and 50% completed scheduled hours. Study and German self-study hours are informational only.',
+      'Training has an 18-hour weekly target: Saturday 3h, Sunday 4h, Tuesday 4h, Wednesday 4h, Thursday 3h. Monday and Friday are optional extras and do not increase the scheduled-hours score.',
+      'College attendance comes from the actual College lecture/section schedule. For Accounting, Management, and Statistics, completing the subject course in person or watching it online can replace the corresponding College session and counts as present. Computers and English have no course replacement. German course attendance starts on 2026-10-12. Default Training days are Saturday, Sunday, Tuesday, Wednesday, and Thursday. There is no default Training on Monday or Friday. Use item_id training-session for Training attendance.',
       'If the user says they trained, mark Training present even on Monday or Friday; those days are optional extras rather than expected sessions. If they skipped a planned default Training day, mark it absent. If the coach/gym called off a default Training day, mark it cancelled/external and it must not hurt the score. Never mark Monday or Friday missed/cancelled merely because no Training happened there.',
-      'Study, German self-study, and Training may be logged in hours when the user gives the hours. Training hours are optional. Never invent hours, and never turn any hour log into performance points. Training attendance and Training hours are separate fields.',
+      'Study and German self-study may be logged in hours for information only. Training hours count toward the scheduled-hours half of the Training score. Never invent hours.',
       'Never invent attendance, dates, subjects, or hours. Ask one concise clarification when a needed fact is missing.',
       'Only delete a study session if the user explicitly asks to delete/remove it.',
       'Never create German course attendance or German self-study records before 2026-10-12.',
