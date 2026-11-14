@@ -881,7 +881,7 @@ function scheduledAttendance(date,pillar=null){
 }
 function attendanceStatus(date,id){return data.attendance?.[date]?.[id]||null}
 function attendanceIsPresent(status){return status==='present'||status==='course_in_person'||status==='course_online'}
-function attendanceStatusLabel(status){return status==='present'?'Attended college':status==='course_in_person'?'Attended subject course':status==='course_online'?'Watched subject course online':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged'}
+function attendanceStatusLabel(status,pillar='College'){return status==='present'?(pillar==='German'?'Attended German course':'Attended college'):status==='course_in_person'?'Attended subject course':status==='course_online'?'Watched subject course online':status==='absent'?'Missed':status==='cancelled'?'Called off':'Not logged'}
 function setAttendance(date,id,status){
   data.attendance=data.attendance||{};
   data.attendance[date]=data.attendance[date]||{};
@@ -1122,7 +1122,7 @@ function renderToday(){
   const scheduledHtml=attendanceItems.map(x=>{
     const whole=isExternallyCancelled(activeDate,x.pillar);
     const status=whole?'cancelled':attendanceStatus(activeDate,x.id);
-    const statusText=whole?'Called off':attendanceStatusLabel(status);
+    const statusText=whole?'Called off':attendanceStatusLabel(status,x.pillar);
     const actions=whole
       ? '<div class="callout" style="margin-top:9px">Called off. Clear it above if that changes.</div>'
       : x.courseEligible
