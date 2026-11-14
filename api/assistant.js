@@ -185,6 +185,7 @@ function executeOperation(payload, op, userMessage) {
     if (!['present','absent','cancelled','unlogged','course_in_person','course_online'].includes(op.status)) return {ok:false,error:'Invalid attendance status.'};
 
     if (op.item_id === TRAINING_ATTENDANCE_ID || op.pillar === 'Training') {
+      if (op.status === 'course_in_person' || op.status === 'course_online') return {ok:false,error:'Training cannot use College subject-course attendance options.'};
       payload.days[date] = payload.days[date] || {};
       payload.days[date].exceptions = payload.days[date].exceptions || {};
       if (op.status === 'cancelled') {
